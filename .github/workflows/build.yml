@@ -1,12 +1,12 @@
 # -----------------------------------------------------------------------------
-# Build & publication de l'image multi-architecture.
+# Build & publish the multi-architecture image.
 #
-# Déclencheur : un tag Git de version (ex : `v1.2.0`).
-# Résultat : une image poussée sur GitHub Container Registry (ghcr.io),
-# pour linux/amd64 ET linux/arm64 (Raspberry Pi, etc.).
+# Trigger: a Git version tag (e.g. `v1.2.0`).
+# Result: an image pushed to the GitHub Container Registry (ghcr.io), for
+# linux/amd64 AND linux/arm64 (Raspberry Pi, etc.).
 #
-# C'est TOUT ce qu'il faut pour « publier » : taguez, poussez, l'indexeur
-# décentralisé fait le reste (aucune revue, aucun compte à créer).
+# That is ALL it takes to "publish": tag, push, and the decentralized indexer
+# does the rest (no review, no account to create).
 # -----------------------------------------------------------------------------
 name: Build and publish image
 
@@ -41,7 +41,7 @@ jobs:
       - name: Derive image tag from Git tag
         id: meta
         run: |
-          # v1.2.0 → 1.2.0
+          # v1.2.0 -> 1.2.0
           echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 

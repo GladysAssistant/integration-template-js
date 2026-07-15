@@ -1,34 +1,34 @@
 # -----------------------------------------------------------------------------
-# Image de l'intégration.
+# Integration image.
 #
-# Contraintes du bac à sable Gladys (« the sandbox is the defense ») :
-#   - rootfs monté en LECTURE SEULE → n'écrivez jamais hors de /data
-#   - un seul volume inscriptible : /data
-#   - exécution en utilisateur non-root
-#   - image multi-arch (linux/amd64 + linux/arm64), voir le workflow CI
+# Gladys sandbox constraints ("the sandbox is the defense"):
+#   - rootfs mounted READ-ONLY -> never write outside /data
+#   - a single writable volume: /data
+#   - runs as a non-root user
+#   - multi-arch image (linux/amd64 + linux/arm64), see the CI workflow
 # -----------------------------------------------------------------------------
 
-FROM node:20-alpine
+FROM node:24-alpine
 
-# dumb-init : gère correctement les signaux (SIGTERM) pour un arrêt propre.
+# dumb-init: handles signals (SIGTERM) correctly for a graceful shutdown.
 RUN apk add --no-cache dumb-init
 
 WORKDIR /app
 
-# On installe d'abord les dépendances de PROD (meilleur cache de build).
+# Install the PROD dependencies first (better build cache).
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev || npm install --omit=dev
 
-# Puis le code de l'intégration.
+# Then the integration code.
 COPY index.js ./
 COPY src ./src
 COPY gladys-assistant-integration.json ./
 
-# Le seul emplacement inscriptible autorisé au runtime.
+# The only writable location allowed at runtime.
 ENV NODE_ENV=production
 VOLUME ["/data"]
 
-# On tourne en utilisateur non privilégié (déjà présent dans l'image node).
+# Run as an unprivileged user (already present in the node image).
 USER node
 
 ENTRYPOINT ["dumb-init", "--"]

@@ -1,20 +1,18 @@
 // -----------------------------------------------------------------------------
-// Petit logger sans dépendance.
+// Tiny dependency-free logger.
 //
-// Les logs de votre intégration sont capturés par le superviseur Gladys
-// (stdout / stderr du conteneur). Écrivez donc simplement sur la console :
-// c'est le canal de debug principal pour une intégration externe.
+// Your integration logs are captured by the Gladys supervisor (the container
+// stdout / stderr). So writing to the console is enough: it is the main debug
+// channel for an external integration.
 //
-// Astuce : passez le niveau souhaité via la variable d'environnement
-// `LOG_LEVEL` (debug | info | warn | error). Par défaut : info.
+// Tip: set the desired level through the `LOG_LEVEL` environment variable
+// (debug | info | warn | error). Defaults to info.
 // -----------------------------------------------------------------------------
 
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 };
 const currentLevel = LEVELS[process.env.LOG_LEVEL] ?? LEVELS.info;
 
 function line(level, args) {
-  // Pas de Date.now() ici pour rester déterministe côté tests, mais en
-  // production un timestamp ISO aide beaucoup à corréler les événements.
   const ts = new Date().toISOString();
   const prefix = `[${ts}] [${level.toUpperCase()}]`;
   const stream = level === 'error' || level === 'warn' ? console.error : console.log;

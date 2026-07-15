@@ -1,18 +1,18 @@
 // -----------------------------------------------------------------------------
-// Point d'entrée de l'intégration externe Gladys.
+// Entry point of the Gladys external integration.
 //
-// Rôle de ce fichier : brancher le SDK sur le catalogue d'appareils
-// (src/devices.js). Il ne contient AUCUNE logique matérielle — tout le
-// « travail » de contrôle est dans les blueprints. Ce fichier ne fait que :
-//   1. instancier le SDK (connexion, auth, reconnexion : géré pour vous) ;
-//   2. enregistrer les gestionnaires d'événements AVANT connect() ;
-//   3. se connecter et publier les appareils découverts.
+// Role of this file: wire the SDK to the device catalog (src/devices/). It holds
+// NO hardware logic: all the control "work" lives in the device modules. This
+// file only:
+//   1. instantiates the SDK (connection, auth, reconnection: handled for you);
+//   2. registers the event handlers BEFORE connect();
+//   3. connects and publishes the discovered devices.
 //
-// Variables d'environnement fournies par le superviseur Gladys au conteneur :
-//   - GLADYS_HOST_API_URL        (URL de l'API hôte)
-//   - GLADYS_INTEGRATION_TOKEN   (JWT propre à l'intégration)
-//   - GLADYS_INTEGRATION_SELECTOR(identifiant de l'intégration)
-// Le SDK les lit automatiquement : `new GladysIntegration()` suffit.
+// Environment variables provided by the Gladys supervisor to the container:
+//   - GLADYS_HOST_API_URL         (host API URL)
+//   - GLADYS_INTEGRATION_TOKEN    (integration-scoped JWT)
+//   - GLADYS_INTEGRATION_SELECTOR (integration identifier)
+// The SDK reads them automatically: `new GladysIntegration()` is enough.
 // -----------------------------------------------------------------------------
 
 import { GladysIntegration } from '@gladysassistant/integration-sdk';
@@ -22,74 +22,74 @@ import {
   DEVICE_BLUEPRINTS,
   buildDiscoveredDevices,
   findBlueprintByDevice,
-} from './src/devices.js';
+} from './src/devices/index.js';
 
 const gladys = new GladysIntegration();
 
-// Configuration courante (mise à jour à chaud via onConfigUpdated).
+// Current configuration (hot-reloaded via onConfigUpdated).
 let config = normalizeConfig();
 
-// Fonctions de nettoyage des abonnements « push » (ex : détecteur de mouvement).
+// Cleanup functions for the "push" subscriptions (e.g. the motion sensor).
 let pushCleanups = [];
 
-// --- Découverte : Gladys demande la liste des appareils -----------------------
+// --- Discovery: Gladys asks for the list of devices --------------------------
 gladys.onScanRequest(async () => {
-  logger.info('onScanRequest → publication des appareils découverts');
+  logger.info('onScanRequest -> publishing discovered devices');
   await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
 });
 
-// --- Commande : l'utilisateur agit sur une feature pilotable ------------------
+// --- Command: the user acts on a controllable feature ------------------------
 gladys.onSetValue(async (device, feature, value) => {
-  logger.info(`onSetValue ← ${feature.external_id} = ${value}`);
+  logger.info(`onSetValue <- ${feature.external_id} = ${value}`);
   const blueprint = findBlueprintByDevice(gladys, device);
   if (!blueprint || typeof blueprint.onSetValue !== 'function') {
-    // On `throw` : le SDK renvoie un accusé success:false à Gladys.
-    throw new Error(`Aucun gestionnaire de commande pour ${device.external_id}`);
+    // Throw: the SDK sends a success:false acknowledgement to Gladys.
+    throw new Error(`No command handler for ${device.external_id}`);
   }
   await blueprint.onSetValue(gladys, { device, feature, value, config });
 });
 
-// --- Polling : Gladys demande de rafraîchir un appareil -----------------------
+// --- Polling: Gladys asks to refresh a device --------------------------------
 gladys.onPoll(async (device) => {
   const blueprint = findBlueprintByDevice(gladys, device);
   if (!blueprint || typeof blueprint.onPoll !== 'function') {
-    logger.debug(`onPoll ignoré (pas de polling) pour ${device.external_id}`);
+    logger.debug(`onPoll ignored (no polling) for ${device.external_id}`);
     return;
   }
   await blueprint.onPoll(gladys, config);
 });
 
-// --- Configuration mise à jour par l'utilisateur ------------------------------
+// --- Configuration updated by the user ---------------------------------------
 gladys.onConfigUpdated(async (newConfig) => {
-  logger.info('onConfigUpdated → nouvelle configuration reçue');
+  logger.info('onConfigUpdated -> new configuration received');
   config = normalizeConfig(newConfig);
-  // On republie les appareils : certaines propriétés (unité, fréquence) en
-  // dépendent. `publishDiscoveredDevices` est idempotent (upsert par external_id).
+  // Re-publish the devices: some properties (unit, frequency) depend on it.
+  // publishDiscoveredDevices is idempotent (upsert by external_id).
   await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
 });
 
-// --- Cycle de vie de la connexion --------------------------------------------
+// --- Connection lifecycle ----------------------------------------------------
 gladys.on('connected', async () => {
-  logger.info('WebSocket connectée à Gladys ✅');
+  logger.info('WebSocket connected to Gladys');
   try {
-    // 1) On récupère la config saisie par l'utilisateur.
+    // 1) Fetch the config filled in by the user.
     config = normalizeConfig(await gladys.getConfig());
 
-    // 2) On (re)publie tous les appareils dès la connexion.
+    // 2) (Re)publish all devices as soon as we are connected.
     await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
 
-    // 3) On démarre les abonnements temps réel (capteurs « push »).
+    // 3) Start the real-time subscriptions ("push" sensors).
     stopPushSubscriptions();
     pushCleanups = DEVICE_BLUEPRINTS.filter((bp) => typeof bp.startPush === 'function').map(
       (bp) => bp.startPush(gladys, config),
     );
   } catch (err) {
-    logger.error('Initialisation post-connexion échouée', err);
+    logger.error('Post-connection initialization failed', err);
   }
 });
 
 gladys.on('disconnected', () => {
-  logger.warn('WebSocket déconnectée — le SDK va tenter de se reconnecter');
+  logger.warn('WebSocket disconnected - the SDK will try to reconnect');
   stopPushSubscriptions();
 });
 
@@ -98,29 +98,29 @@ function stopPushSubscriptions() {
     try {
       cleanup?.();
     } catch (err) {
-      logger.error('Nettoyage abonnement push échoué', err);
+      logger.error('Push subscription cleanup failed', err);
     }
   }
   pushCleanups = [];
 }
 
-// --- Arrêt propre -------------------------------------------------------------
+// --- Graceful shutdown -------------------------------------------------------
 async function shutdown(signal) {
-  logger.info(`Signal ${signal} reçu → arrêt propre`);
+  logger.info(`Received ${signal} -> graceful shutdown`);
   stopPushSubscriptions();
   try {
     await gladys.disconnect();
   } catch {
-    // on ignore : on s'arrête de toute façon
+    // ignore: we are stopping anyway
   }
   process.exit(0);
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-// --- Démarrage ----------------------------------------------------------------
-logger.info('Démarrage de l\'intégration template…');
+// --- Startup -----------------------------------------------------------------
+logger.info('Starting the template integration...');
 gladys.connect().catch((err) => {
-  logger.error('Connexion initiale impossible', err);
+  logger.error('Initial connection failed', err);
   process.exit(1);
 });

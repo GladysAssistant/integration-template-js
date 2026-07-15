@@ -11,17 +11,17 @@ Official starter template for building an **external integration** for
 
 This is **not** a 40-line hello-world: it deliberately shows several **device
 types** so you can copy the one closest to your hardware. Everything lives in
-[`src/devices.js`](./src/devices.js), and every place where you would talk to
-your real hardware / cloud API is marked with a `FAIRE LE TRAVAIL` comment and
-a `logger` call.
+the [`src/devices/`](./src/devices) folder (one file per device type), and every
+place where you would talk to your real hardware / cloud API is marked with a
+`DO THE WORK` comment and a `logger` call.
 
 | Device | Type illustrated | SDK hooks used |
 |--------|------------------|----------------|
-| Station météo | Read-only sensors (temperature + humidity), **real data** via Open-Meteo | `onPoll`, `publishStates` |
-| Interrupteur salon | Binary actuator (ON/OFF) | `onSetValue`, `publishState` |
-| Lampe salon | Dimmable light (on/off **+** brightness) | `onSetValue` per feature |
-| Prise bureau | Mixed: actuator **+** power metering | `onSetValue`, `onPoll` |
-| Détecteur de mouvement | Push / event-driven sensor | `startPush`, `publishState` |
+| Weather station | Read-only sensors (temperature + humidity), **real data** via Open-Meteo | `onPoll`, `publishStates` |
+| Living room switch | Binary actuator (ON/OFF) | `onSetValue`, `publishState` |
+| Living room light | Dimmable light (on/off **+** brightness) | `onSetValue` per feature |
+| Office plug | Mixed: actuator **+** power metering | `onSetValue`, `onPoll` |
+| Entrance motion sensor | Push / event-driven sensor | `startPush`, `publishState` |
 
 The wiring (connection, auth, reconnection, dispatch) is in
 [`index.js`](./index.js) — you rarely need to touch it.
@@ -30,17 +30,30 @@ The wiring (connection, auth, reconnection, dispatch) is in
 
 ```
 .
-├─ index.js                          # SDK bootstrap + event wiring
+├─ index.js                          # SDK bootstrap + event wiring (no device logic)
 ├─ src/
-│  ├─ devices.js                     # ← the device catalog (edit this)
+│  ├─ devices/                       # ← one file per device type (edit these)
+│  │  ├─ index.js                    #   registry: list your devices here
+│  │  ├─ externalId.js               #   helper: build unique external ids
+│  │  ├─ weatherStation.js           #   read-only sensors (poll)
+│  │  ├─ switchDevice.js             #   binary actuator
+│  │  ├─ light.js                    #   dimmable light (on/off + brightness)
+│  │  ├─ plug.js                     #   actuator + power metering
+│  │  └─ motionSensor.js             #   push / event-driven sensor
 │  ├─ weather.js                     # example real "driver" (Open-Meteo)
+│  ├─ constants.js                   # Gladys categories / types / units
 │  ├─ config.js                      # config defaults + normalization
 │  └─ logger.js                      # tiny console logger
 ├─ gladys-assistant-integration.json # manifest (name, config schema, image…)
-├─ Dockerfile                        # Node 20 Alpine, read-only rootfs ready
+├─ Dockerfile                        # Node 24 Alpine, read-only rootfs ready
 ├─ .github/workflows/build.yml       # multi-arch build on git tag
 └─ cover.png                         # catalog cover, 800×534 px, ≤150 KB
 ```
+
+To add a device type, create a new file in `src/devices/` following the same
+shape as the existing ones, then register it in `src/devices/index.js`. Business
+logic (the device modules) and utilities (`constants.js`, `weather.js`,
+`logger.js`, `config.js`) are kept separate so the parts you edit stay small.
 
 ## Run it locally
 
@@ -60,7 +73,7 @@ automatically.
 ## Publish in 5 steps
 
 1. **Fork** this template (or use *Use this template* on GitHub).
-2. **Edit** `src/devices.js` and `gladys-assistant-integration.json` for your
+2. **Edit** the files in `src/devices/` and `gladys-assistant-integration.json` for your
    devices, and replace `docker_image` / `cover_image` with your own.
 3. **Add the GitHub topic** `gladys-assistant-integration` to your repo.
 4. **Tag a release** (`git tag v1.0.0 && git push --tags`) — the workflow

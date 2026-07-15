@@ -1,33 +1,33 @@
 // -----------------------------------------------------------------------------
-// Configuration de l'intégration.
+// Integration configuration.
 //
-// La configuration est saisie par l'utilisateur dans Gladys à partir du
-// `config_schema` déclaré dans `gladys-assistant-integration.json`.
-// Le SDK la récupère pour vous (`gladys.getConfig()`) et vous notifie de
-// chaque changement via `gladys.onConfigUpdated()`.
+// The configuration is filled in by the user in Gladys, from the `config_schema`
+// declared in `gladys-assistant-integration.json`. The SDK fetches it for you
+// (`gladys.getConfig()`) and notifies you of every change through
+// `gladys.onConfigUpdated()`.
 //
-// Ce module se contente de fournir des valeurs par défaut et de normaliser
-// l'objet reçu, pour que le reste du code n'ait jamais à gérer `undefined`.
+// This module only provides defaults and normalizes the received object, so the
+// rest of the code never has to deal with `undefined`.
 // -----------------------------------------------------------------------------
 
-// Valeurs par défaut : elles DOIVENT rester cohérentes avec les `default`
-// déclarés dans le `config_schema` du manifeste.
+// Defaults: they MUST stay consistent with the `default` values declared in the
+// `config_schema` of the manifest.
 export const DEFAULT_CONFIG = {
   latitude: 48.8566, // Paris
   longitude: 2.3522,
   unit: 'celsius', // 'celsius' | 'fahrenheit'
-  poll_frequency: 300, // secondes, fréquence de rafraîchissement des capteurs
+  poll_frequency: 300, // seconds, how often sensors are refreshed
 };
 
 /**
- * Fusionne la config utilisateur avec les valeurs par défaut.
- * @param {Record<string, unknown>} raw config renvoyée par le SDK
+ * Merge the user config with the defaults.
+ * @param {Record<string, unknown>} raw config returned by the SDK
  */
 export function normalizeConfig(raw = {}) {
   return {
     ...DEFAULT_CONFIG,
     ...raw,
-    // On force les types : la config peut arriver en string depuis un formulaire.
+    // Force the types: config may arrive as strings from a form.
     latitude: Number(raw.latitude ?? DEFAULT_CONFIG.latitude),
     longitude: Number(raw.longitude ?? DEFAULT_CONFIG.longitude),
     poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),

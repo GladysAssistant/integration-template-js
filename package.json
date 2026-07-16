@@ -7,13 +7,13 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "check": "node --check index.js && node --check src/logger.js && node --check src/config.js && node --check src/constants.js && node --check src/weather.js && node --check src/devices/index.js && node --check src/devices/externalId.js && node --check src/devices/weatherStation.js && node --check src/devices/switchDevice.js && node --check src/devices/light.js && node --check src/devices/plug.js && node --check src/devices/motionSensor.js"
+    "check": "node --check index.js && node --check src/config.js && node --check src/weather.js && node --check src/devices/index.js && node --check src/devices/weatherStation.js && node --check src/devices/switchDevice.js && node --check src/devices/light.js && node --check src/devices/plug.js && node --check src/devices/motionSensor.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "@gladysassistant/integration-sdk": "^0.1.0"
+    "@gladysassistant/integration-sdk": "^0.2.0"
   },
   "license": "Apache-2.0"
 }

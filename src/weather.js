@@ -8,7 +8,9 @@
 // Node 20+ provides `fetch` natively: no dependency needed.
 // -----------------------------------------------------------------------------
 
-import { logger } from './logger.js';
+import { createLogger } from '@gladysassistant/integration-sdk';
+
+const logger = createLogger({ name: 'weather' });
 
 /**
  * Fetch the current temperature and humidity for a position.

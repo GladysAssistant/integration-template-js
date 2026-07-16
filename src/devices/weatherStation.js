@@ -4,12 +4,18 @@
 // Uses REAL data from the free Open-Meteo API (no hardware, no API key).
 // -----------------------------------------------------------------------------
 
-import { logger } from '../logger.js';
+import {
+  createLogger,
+  DEVICE_FEATURE_CATEGORIES,
+  DEVICE_FEATURE_TYPES,
+  DEVICE_FEATURE_UNITS,
+} from '@gladysassistant/integration-sdk';
 import { fetchWeather } from '../weather.js';
-import { CATEGORY, TYPE, UNIT } from '../constants.js';
-import { createIds } from './externalId.js';
 
 const DEVICE_TYPE = 'weather-station';
+
+// Named logger from the SDK: every line is prefixed with [weather-station].
+const logger = createLogger({ name: DEVICE_TYPE });
 
 // Unique id provided by the external platform for THIS physical device.
 // In a real integration you obtain it when you enumerate devices from the
@@ -27,11 +33,11 @@ export const weatherStation = {
   key: DEVICE_TYPE,
 
   deviceExternalId(gladys) {
-    return createIds(gladys, DEVICE_TYPE, PLATFORM_DEVICE_ID).device;
+    return gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID).device;
   },
 
   buildDevice(gladys, config) {
-    const ids = createIds(gladys, DEVICE_TYPE, PLATFORM_DEVICE_ID);
+    const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID);
     return {
       name: 'Weather station (Open-Meteo demo)',
       external_id: ids.device,
@@ -41,9 +47,12 @@ export const weatherStation = {
         {
           name: 'Temperature',
           external_id: ids.feature(FEATURE.TEMPERATURE),
-          category: CATEGORY.TEMPERATURE_SENSOR,
-          type: TYPE.DECIMAL,
-          unit: config.unit === 'fahrenheit' ? UNIT.FAHRENHEIT : UNIT.CELSIUS,
+          category: DEVICE_FEATURE_CATEGORIES.TEMPERATURE_SENSOR,
+          type: DEVICE_FEATURE_TYPES.SENSOR.DECIMAL,
+          unit:
+            config.unit === 'fahrenheit'
+              ? DEVICE_FEATURE_UNITS.FAHRENHEIT
+              : DEVICE_FEATURE_UNITS.CELSIUS,
           min: -50,
           max: 60,
           read_only: true, // sensor: no action possible
@@ -53,9 +62,9 @@ export const weatherStation = {
         {
           name: 'Humidity',
           external_id: ids.feature(FEATURE.HUMIDITY),
-          category: CATEGORY.HUMIDITY_SENSOR,
-          type: TYPE.INTEGER,
-          unit: UNIT.PERCENT,
+          category: DEVICE_FEATURE_CATEGORIES.HUMIDITY_SENSOR,
+          type: DEVICE_FEATURE_TYPES.SENSOR.INTEGER,
+          unit: DEVICE_FEATURE_UNITS.PERCENT,
           min: 0,
           max: 100,
           read_only: true,
@@ -67,8 +76,8 @@ export const weatherStation = {
   },
 
   async onPoll(gladys, config) {
-    const ids = createIds(gladys, DEVICE_TYPE, PLATFORM_DEVICE_ID);
-    logger.info('[weather-station] Polling weather values...');
+    const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID);
+    logger.info('Polling weather values...');
 
     // ------------------------------------------------------------------ //
     // DO THE WORK: read the real sensor values.
@@ -76,7 +85,7 @@ export const weatherStation = {
     // ------------------------------------------------------------------ //
     const { temperature, humidity } = await fetchWeather(config);
 
-    logger.info(`[weather-station] Read: ${temperature}deg / ${humidity}%`);
+    logger.info(`Read: ${temperature}deg / ${humidity}%`);
 
     // Publish both values in a single request (batch, up to 100).
     await gladys.publishStates([

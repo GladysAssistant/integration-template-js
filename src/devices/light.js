@@ -4,11 +4,16 @@
 // A single onSetValue callback handles the whole device and routes per feature.
 // -----------------------------------------------------------------------------
 
-import { logger } from '../logger.js';
-import { CATEGORY, TYPE, UNIT } from '../constants.js';
-import { createIds } from './externalId.js';
+import {
+  createLogger,
+  DEVICE_FEATURE_CATEGORIES,
+  DEVICE_FEATURE_TYPES,
+  DEVICE_FEATURE_UNITS,
+} from '@gladysassistant/integration-sdk';
 
 const DEVICE_TYPE = 'light';
+
+const logger = createLogger({ name: DEVICE_TYPE });
 
 // Unique id coming from the external platform (simulated here).
 const PLATFORM_DEVICE_ID = 'bulb-4d9e01';
@@ -26,11 +31,11 @@ export const light = {
   key: DEVICE_TYPE,
 
   deviceExternalId(gladys) {
-    return createIds(gladys, DEVICE_TYPE, PLATFORM_DEVICE_ID).device;
+    return gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID).device;
   },
 
   buildDevice(gladys) {
-    const ids = createIds(gladys, DEVICE_TYPE, PLATFORM_DEVICE_ID);
+    const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID);
     return {
       name: 'Living room light',
       external_id: ids.device,
@@ -38,8 +43,8 @@ export const light = {
         {
           name: 'On/Off',
           external_id: ids.feature(FEATURE.ON_OFF),
-          category: CATEGORY.LIGHT,
-          type: TYPE.BINARY,
+          category: DEVICE_FEATURE_CATEGORIES.LIGHT,
+          type: DEVICE_FEATURE_TYPES.LIGHT.BINARY,
           read_only: false,
           has_feedback: true,
           keep_history: true,
@@ -47,9 +52,9 @@ export const light = {
         {
           name: 'Brightness',
           external_id: ids.feature(FEATURE.BRIGHTNESS),
-          category: CATEGORY.LIGHT,
-          type: TYPE.BRIGHTNESS,
-          unit: UNIT.PERCENT,
+          category: DEVICE_FEATURE_CATEGORIES.LIGHT,
+          type: DEVICE_FEATURE_TYPES.LIGHT.BRIGHTNESS,
+          unit: DEVICE_FEATURE_UNITS.PERCENT,
           min: 0,
           max: 100,
           read_only: false,
@@ -61,11 +66,11 @@ export const light = {
   },
 
   async onSetValue(gladys, { feature, value }) {
-    const ids = createIds(gladys, DEVICE_TYPE, PLATFORM_DEVICE_ID);
+    const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID);
 
     if (feature.external_id === ids.feature(FEATURE.ON_OFF)) {
       const on = value === 1;
-      logger.info(`[light] Power: ${on ? 'ON' : 'OFF'}`);
+      logger.info(`Power: ${on ? 'ON' : 'OFF'}`);
       // -------------------------------------------------------------- //
       // DO THE WORK: turn the bulb on/off.
       // e.g. await zigbee.set(ieeeAddr, { state: on ? 'ON' : 'OFF' });
@@ -77,7 +82,7 @@ export const light = {
 
     if (feature.external_id === ids.feature(FEATURE.BRIGHTNESS)) {
       const level = Math.max(0, Math.min(100, value));
-      logger.info(`[light] Brightness: ${level}%`);
+      logger.info(`Brightness: ${level}%`);
       // -------------------------------------------------------------- //
       // DO THE WORK: set the brightness (often needs converting to the
       // hardware scale, e.g. 0-254 for Zigbee).
@@ -89,6 +94,6 @@ export const light = {
       return;
     }
 
-    logger.warn(`[light] Unknown feature: ${feature.external_id}`);
+    logger.warn(`Unknown feature: ${feature.external_id}`);
   },
 };

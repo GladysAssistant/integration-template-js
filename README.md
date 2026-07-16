@@ -34,16 +34,13 @@ The wiring (connection, auth, reconnection, dispatch) is in
 ├─ src/
 │  ├─ devices/                       # ← one file per device type (edit these)
 │  │  ├─ index.js                    #   registry: list your devices here
-│  │  ├─ externalId.js               #   helper: build unique external ids
 │  │  ├─ weatherStation.js           #   read-only sensors (poll)
 │  │  ├─ switchDevice.js             #   binary actuator
 │  │  ├─ light.js                    #   dimmable light (on/off + brightness)
 │  │  ├─ plug.js                     #   actuator + power metering
 │  │  └─ motionSensor.js             #   push / event-driven sensor
 │  ├─ weather.js                     # example real "driver" (Open-Meteo)
-│  ├─ constants.js                   # Gladys categories / types / units
-│  ├─ config.js                      # config defaults + normalization
-│  └─ logger.js                      # tiny console logger
+│  └─ config.js                      # config defaults + normalization
 ├─ gladys-assistant-integration.json # manifest (name, config schema, image…)
 ├─ Dockerfile                        # Node 24 Alpine, read-only rootfs ready
 ├─ .github/workflows/build.yml       # multi-arch build on git tag
@@ -52,8 +49,19 @@ The wiring (connection, auth, reconnection, dispatch) is in
 
 To add a device type, create a new file in `src/devices/` following the same
 shape as the existing ones, then register it in `src/devices/index.js`. Business
-logic (the device modules) and utilities (`constants.js`, `weather.js`,
-`logger.js`, `config.js`) are kept separate so the parts you edit stay small.
+logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
+separate so the parts you edit stay small.
+
+The plumbing you would otherwise copy into every integration comes straight
+from the SDK (v0.2.0+):
+
+- `logger` / `createLogger({ name })` — leveled console logger (`LOG_LEVEL`
+  env var), with named/child loggers per module;
+- `DEVICE_FEATURE_CATEGORIES`, `DEVICE_FEATURE_TYPES`, `DEVICE_FEATURE_UNITS`
+  — the standard Gladys categories / types / units, no manual string copying;
+- `gladys.externalIds(type, platformId)` — builds the unique, stable device
+  and feature external ids;
+- `gladys.handleShutdown(cleanup)` — graceful SIGTERM/SIGINT handling.
 
 ## Run it locally
 
@@ -87,7 +95,10 @@ Full documentation: <https://gladysassistant.com> (integrations developer guide)
 
 - Requires **Node.js ≥ 20** (uses the built-in global `fetch`; no HTTP dep).
 - All external identifiers are prefixed with `ext:<selector>:` — always build
-  them with `gladys.externalId(suffix)`; the server rejects anything else.
+  them with `gladys.externalIds(type, platformId)` (or the lower-level
+  `gladys.externalId(suffix)`); the server rejects anything else. Derive
+  `platformId` from the unique id the external platform gives you (serial,
+  cloud id, MAC…), never from a hard-coded label.
 - `has_feedback: true` features should publish the state **confirmed by the
   device**; the template publishes the requested value for simplicity.
 - Replace `cover.png` with your own 800×534 px image (≤150 KB, PNG or JPEG)

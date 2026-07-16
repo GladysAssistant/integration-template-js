@@ -15,8 +15,7 @@
 // The SDK reads them automatically: `new GladysIntegration()` is enough.
 // -----------------------------------------------------------------------------
 
-import { GladysIntegration } from '@gladysassistant/integration-sdk';
-import { logger } from './src/logger.js';
+import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
 import { normalizeConfig } from './src/config.js';
 import {
   DEVICE_BLUEPRINTS,
@@ -105,18 +104,12 @@ function stopPushSubscriptions() {
 }
 
 // --- Graceful shutdown -------------------------------------------------------
-async function shutdown(signal) {
+// The SDK stops the push subscriptions, disconnects cleanly and exits with
+// code 0 when the supervisor stops the container (SIGTERM/SIGINT).
+gladys.handleShutdown((signal) => {
   logger.info(`Received ${signal} -> graceful shutdown`);
   stopPushSubscriptions();
-  try {
-    await gladys.disconnect();
-  } catch {
-    // ignore: we are stopping anyway
-  }
-  process.exit(0);
-}
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+});
 
 // --- Startup -----------------------------------------------------------------
 logger.info('Starting the template integration...');

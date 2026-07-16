@@ -4,11 +4,16 @@
 // measurement (instantaneous power). It is both controlled and polled.
 // -----------------------------------------------------------------------------
 
-import { logger } from '../logger.js';
-import { CATEGORY, TYPE, UNIT } from '../constants.js';
-import { createIds } from './externalId.js';
+import {
+  createLogger,
+  DEVICE_FEATURE_CATEGORIES,
+  DEVICE_FEATURE_TYPES,
+  DEVICE_FEATURE_UNITS,
+} from '@gladysassistant/integration-sdk';
 
 const DEVICE_TYPE = 'plug';
+
+const logger = createLogger({ name: DEVICE_TYPE });
 
 // Unique id coming from the external platform (simulated here).
 const PLATFORM_DEVICE_ID = 'plug-77c1ab';
@@ -25,11 +30,11 @@ export const plug = {
   key: DEVICE_TYPE,
 
   deviceExternalId(gladys) {
-    return createIds(gladys, DEVICE_TYPE, PLATFORM_DEVICE_ID).device;
+    return gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID).device;
   },
 
   buildDevice(gladys, config) {
-    const ids = createIds(gladys, DEVICE_TYPE, PLATFORM_DEVICE_ID);
+    const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID);
     return {
       name: 'Office plug',
       external_id: ids.device,
@@ -38,8 +43,8 @@ export const plug = {
         {
           name: 'On/Off',
           external_id: ids.feature(FEATURE.ON_OFF),
-          category: CATEGORY.SWITCH,
-          type: TYPE.BINARY,
+          category: DEVICE_FEATURE_CATEGORIES.SWITCH,
+          type: DEVICE_FEATURE_TYPES.SWITCH.BINARY,
           read_only: false,
           has_feedback: true,
           keep_history: true,
@@ -47,9 +52,9 @@ export const plug = {
         {
           name: 'Instantaneous power',
           external_id: ids.feature(FEATURE.POWER),
-          category: CATEGORY.ENERGY_SENSOR,
-          type: TYPE.POWER,
-          unit: UNIT.WATT,
+          category: DEVICE_FEATURE_CATEGORIES.ENERGY_SENSOR,
+          type: DEVICE_FEATURE_TYPES.ENERGY_SENSOR.POWER,
+          unit: DEVICE_FEATURE_UNITS.WATT,
           min: 0,
           max: 3680,
           read_only: true, // measurement: not controllable
@@ -62,7 +67,7 @@ export const plug = {
 
   async onSetValue(gladys, { feature, value }) {
     const on = value === 1;
-    logger.info(`[plug] Relay command: ${on ? 'ON' : 'OFF'}`);
+    logger.info(`Relay command: ${on ? 'ON' : 'OFF'}`);
     // ------------------------------------------------------------------ //
     // DO THE WORK: toggle the plug relay.
     // ------------------------------------------------------------------ //
@@ -71,13 +76,13 @@ export const plug = {
   },
 
   async onPoll(gladys) {
-    const ids = createIds(gladys, DEVICE_TYPE, PLATFORM_DEVICE_ID);
+    const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID);
     // ------------------------------------------------------------------ //
     // DO THE WORK: read the instantaneous power measured by the plug.
     // Here we simulate it: 0 W when off, ~120 W (+ noise) when on.
     // ------------------------------------------------------------------ //
     const power = isOn ? Math.round(120 + Math.random() * 15) : 0;
-    logger.info(`[plug] Measured power: ${power} W`);
+    logger.info(`Measured power: ${power} W`);
     await gladys.publishState(ids.feature(FEATURE.POWER), power);
   },
 };

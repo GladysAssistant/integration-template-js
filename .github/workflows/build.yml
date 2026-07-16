@@ -58,16 +58,18 @@ jobs:
             # Manual test build: use the input tag, or the branch name
             # (slashes replaced by dashes). Never move `latest`.
             version="${INPUT_IMAGE_TAG:-${GITHUB_REF_NAME//\//-}}"
+            if [ "$version" = "latest" ]; then
+              echo "::error::Cannot use 'latest' as a manual image tag."
+              exit 1
+            fi
             tags="${image}:${version}"
           else
             # v1.2.0 -> 1.2.0
             version="${GITHUB_REF_NAME#v}"
-            tags="${image}:${version}"$'\n'"${image}:latest"
+            tags="${image}:${version},${image}:latest"
           fi
           echo "image_ref=${image}:${version}" >> "$GITHUB_OUTPUT"
-          echo "tags<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$tags" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
 
       - name: Build and push (amd64 + arm64)
         uses: docker/build-push-action@v6

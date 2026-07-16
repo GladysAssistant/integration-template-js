@@ -64,6 +64,7 @@ jobs:
             version="${GITHUB_REF_NAME#v}"
             tags="${image}:${version}"$'\n'"${image}:latest"
           fi
+          echo "image_ref=${image}:${version}" >> "$GITHUB_OUTPUT"
           echo "tags<<EOF" >> "$GITHUB_OUTPUT"
           echo "$tags" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
@@ -75,3 +76,30 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+
+      - name: Docker build summary
+        env:
+          IMAGE_REF: ${{ steps.meta.outputs.image_ref }}
+        run: |
+          # Manifest with `docker_image` pointing at the image just pushed,
+          # ready to paste into Gladys developer mode.
+          manifest=$(jq --arg image "$IMAGE_REF" '.docker_image = $image' \
+            gladys-assistant-integration.json)
+          {
+            echo "## Docker build summary"
+            echo ""
+            echo "Image pushed (linux/amd64 + linux/arm64):"
+            echo ""
+            echo '```'
+            echo "$IMAGE_REF"
+            echo '```'
+            echo ""
+            echo "### Test this build in Gladys"
+            echo ""
+            echo "1. In Gladys, open **Integrations → Install an integration → Developer mode**."
+            echo "2. Copy the manifest below (its \`docker_image\` already points to this build):"
+            echo ""
+            echo '```json'
+            echo "$manifest"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

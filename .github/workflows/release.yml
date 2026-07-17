@@ -73,6 +73,10 @@ jobs:
 
           echo "version=${new_version}" >> "$GITHUB_OUTPUT"
 
+      # Note: if the branch you release from is protected against direct pushes,
+      # GitHub rejects the push below (the default GITHUB_TOKEN cannot bypass
+      # branch protection). Allow GitHub Actions to bypass the rule, or release
+      # from an unprotected branch.
       - name: Commit, tag and push
         env:
           VERSION: ${{ steps.bump.outputs.version }}

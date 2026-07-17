@@ -111,7 +111,12 @@ there and it is picked up automatically.
    offers a one-click install / update.
 
 > Prefer the terminal? `git tag v1.0.0 && git push --tags` still works — the
-> hand-pushed tag triggers the same multi-arch build.
+> hand-pushed tag triggers the same multi-arch build. This path only publishes
+> the Docker tags, though: it does **not** touch `package.json`,
+> `package-lock.json` or the manifest. Bump `version` (and `docker_image`) in
+> `gladys-assistant-integration.json` and commit it **before** tagging, or the
+> indexer will keep serving the old version. The Release workflow above does
+> all of this for you.
 
 Full documentation: <https://gladysassistant.com> (integrations developer guide).
 

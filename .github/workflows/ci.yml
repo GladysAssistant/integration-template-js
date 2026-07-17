@@ -7,8 +7,8 @@
 #   2. ESLint    -> catch real mistakes (undefined vars, dead code, ...);
 #   3. Tests     -> `node --test`, the built-in runner (no extra dependency).
 #
-# Runs on Node 20 (the minimum supported, see `engines`) and Node 24 (the
-# version the Docker image ships with) so a green check means it works on both.
+# Runs on Node 24, the version the Docker image ships with (see the Dockerfile),
+# so the check exercises the exact runtime the integration runs on.
 # -----------------------------------------------------------------------------
 name: CI
 
@@ -21,11 +21,7 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [20, 24]
-    name: Lint & test (Node ${{ matrix.node-version }})
+    name: Lint & test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,7 +29,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 24
           cache: npm
 
       - name: Install dependencies

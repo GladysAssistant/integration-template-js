@@ -58,6 +58,16 @@ gladys.onPoll(async (device) => {
   await blueprint.onPoll(gladys, config);
 });
 
+// --- Manifest actions: buttons in the Configuration screen -------------------
+// Each action declared in the `actions` field of the manifest is registered
+// per key; the message resolved by the handler is displayed under the button
+// (the ack is awaited under the action's `timeout_seconds`, not the usual 5 s).
+for (const blueprint of DEVICE_BLUEPRINTS) {
+  for (const [actionKey, handler] of Object.entries(blueprint.actions ?? {})) {
+    gladys.onAction(actionKey, (fields) => handler(gladys, { fields, config }));
+  }
+}
+
 // --- Configuration updated by the user ---------------------------------------
 gladys.onConfigUpdated(async (newConfig) => {
   logger.info('onConfigUpdated -> new configuration received');
@@ -68,8 +78,10 @@ gladys.onConfigUpdated(async (newConfig) => {
 });
 
 // --- Connection lifecycle ----------------------------------------------------
+// The SDK itself logs the WebSocket lifecycle (connections, disconnections,
+// reconnection attempts) under the `gladys-sdk` name: no need to log it again
+// here, these handlers only run the integration's own (re)initialization.
 gladys.on('connected', async () => {
-  logger.info('WebSocket connected to Gladys');
   try {
     // 1) Fetch the config filled in by the user.
     config = normalizeConfig(await gladys.getConfig());
@@ -82,13 +94,23 @@ gladys.on('connected', async () => {
     pushCleanups = DEVICE_BLUEPRINTS.filter((bp) => typeof bp.startPush === 'function').map((bp) =>
       bp.startPush(gladys, config),
     );
+
+    // 4) Report the application-level status, shown in the Configuration
+    // screen. Distinct from the container state machine: an integration can
+    // be RUNNING and still disconnected from its third-party service.
+    await gladys.setConnectionStatus(true);
   } catch (err) {
     logger.error('Post-connection initialization failed', err);
+    await gladys
+      .setConnectionStatus(false, {
+        en: 'Initialization failed, check the integration logs.',
+        fr: "L'initialisation a échoué, consultez les logs de l'intégration.",
+      })
+      .catch(() => {});
   }
 });
 
 gladys.on('disconnected', () => {
-  logger.warn('WebSocket disconnected - the SDK will try to reconnect');
   stopPushSubscriptions();
 });
 

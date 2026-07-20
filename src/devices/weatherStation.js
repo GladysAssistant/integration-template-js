@@ -75,6 +75,21 @@ export const weatherStation = {
     };
   },
 
+  // Manifest actions owned by this device type (see the `actions` field of
+  // `gladys-assistant-integration.json`). Each key is rendered as a button in
+  // the Configuration screen; the resolved message (string or multi-language
+  // object) is displayed under the button, a thrown error is displayed too.
+  actions: {
+    async test_weather(gladys, { config }) {
+      logger.info('Action test_weather -> live request to the provider');
+      const { temperature, humidity } = await fetchWeather(config);
+      return {
+        en: `Weather provider OK: ${temperature}° / ${humidity}% right now.`,
+        fr: `Fournisseur météo OK : ${temperature}° / ${humidity}% actuellement.`,
+      };
+    },
+  },
+
   async onPoll(gladys, config) {
     const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID);
     logger.info('Polling weather values...');

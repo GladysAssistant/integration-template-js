@@ -15,13 +15,13 @@ the [`src/devices/`](./src/devices) folder (one file per device type), and every
 place where you would talk to your real hardware / cloud API is marked with a
 `DO THE WORK` comment and a `logger` call.
 
-| Device                 | Type illustrated                                                         | SDK hooks used               |
-| ---------------------- | ------------------------------------------------------------------------ | ---------------------------- |
-| Weather station        | Read-only sensors (temperature + humidity), **real data** via Open-Meteo | `onPoll`, `publishStates`    |
-| Living room switch     | Binary actuator (ON/OFF)                                                 | `onSetValue`, `publishState` |
-| Living room light      | Dimmable light (on/off **+** brightness)                                 | `onSetValue` per feature     |
-| Office plug            | Mixed: actuator **+** power metering                                     | `onSetValue`, `onPoll`       |
-| Entrance motion sensor | Push / event-driven sensor                                               | `startPush`, `publishState`  |
+| Device                 | Type illustrated                                                         | SDK hooks used                        |
+| ---------------------- | ------------------------------------------------------------------------ | ------------------------------------- |
+| Weather station        | Read-only sensors (temperature + humidity), **real data** via Open-Meteo | `onPoll`, `publishStates`, `onAction` |
+| Living room switch     | Binary actuator (ON/OFF)                                                 | `onSetValue`, `publishState`          |
+| Living room light      | Dimmable light (on/off **+** brightness)                                 | `onSetValue` per feature              |
+| Office plug            | Mixed: actuator **+** power metering                                     | `onSetValue`, `onPoll`                |
+| Entrance motion sensor | Push / event-driven sensor                                               | `startPush`, `publishState`           |
 
 The wiring (connection, auth, reconnection, dispatch) is in
 [`index.js`](./index.js) — you rarely need to touch it.
@@ -54,15 +54,33 @@ logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
 separate so the parts you edit stay small.
 
 The plumbing you would otherwise copy into every integration comes straight
-from the SDK (v0.2.0+):
+from the SDK (v0.4.0+):
 
 - `logger` / `createLogger({ name })` — leveled console logger (`LOG_LEVEL`
-  env var), with named/child loggers per module;
+  env var), with named/child loggers per module. Since SDK v0.4 the SDK also
+  logs its own connection lifecycle (under the `gladys-sdk` name), so
+  connectivity problems show up in `docker logs` without extra code;
 - `DEVICE_FEATURE_CATEGORIES`, `DEVICE_FEATURE_TYPES`, `DEVICE_FEATURE_UNITS`
   — the standard Gladys categories / types / units, no manual string copying;
 - `gladys.externalIds(type, platformId)` — builds the unique, stable device
   and feature external ids;
-- `gladys.handleShutdown(cleanup)` — graceful SIGTERM/SIGINT handling.
+- `gladys.handleShutdown(cleanup)` — graceful SIGTERM/SIGINT handling;
+- `gladys.setConnectionStatus(connected, message?)` — application-level
+  connection status shown in the Configuration screen (the template reports it
+  after every (re)initialization);
+- `gladys.onAction(key, cb)` — handler of a manifest `actions` button: the
+  template declares a `test_weather` action (manifest `actions` field) and the
+  weather station blueprint implements it, returning the multi-language
+  message displayed under the button.
+
+The SDK offers more for integrations that need it — OAuth2 cloud flows
+(`onOAuthAuthorizeUrl` / `onOAuthCallback` + an `oauth2` config field),
+sub-containers (`getContainers`, `startContainer`… + the manifest `containers`
+field) and mediated network discovery (`scanNetwork` + the manifest
+`network_discovery` field, for UDP-broadcast / mDNS / SSDP scans from the
+core). See the
+[SDK README](https://github.com/GladysAssistant/integration-sdk-js) for those
+patterns; this template stays focused on devices.
 
 ## Run it locally
 

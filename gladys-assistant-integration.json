@@ -61,5 +61,12 @@
       "min": 30,
       "max": 3600
     }
+  ],
+  "actions": [
+    {
+      "key": "test_weather",
+      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
+      "timeout_seconds": 30
+    }
   ]
 }

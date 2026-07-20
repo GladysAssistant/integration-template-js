@@ -47,3 +47,24 @@ test('findBlueprintByDevice returns undefined for an unknown device', () => {
   const found = findBlueprintByDevice(gladys, { external_id: 'does-not-exist' });
   assert.equal(found, undefined);
 });
+
+test('manifest action keys are unique across blueprints', () => {
+  const keys = DEVICE_BLUEPRINTS.flatMap((bp) => Object.keys(bp.actions ?? {}));
+  assert.equal(new Set(keys).size, keys.length, 'no two blueprints may register the same action');
+});
+
+test('the test_weather action returns a multi-language message', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ current: { temperature_2m: 21.4, relative_humidity_2m: 55 } }),
+  });
+  try {
+    const weatherStation = DEVICE_BLUEPRINTS.find((bp) => bp.key === 'weather-station');
+    const message = await weatherStation.actions.test_weather(gladys, { fields: {}, config });
+    assert.match(message.en, /21\.4/);
+    assert.match(message.fr, /21\.4/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

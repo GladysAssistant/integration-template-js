@@ -9,6 +9,8 @@
 //   - onPoll(gladys, config)      (optional): periodic read
 //   - onSetValue(gladys, {...})   (optional): run a user command
 //   - startPush(gladys, config)   (optional): subscribe to a real-time stream
+//   - actions                     (optional): manifest action handlers, keyed
+//     by the action `key` declared in gladys-assistant-integration.json
 // -----------------------------------------------------------------------------
 
 import { weatherStation } from './weatherStation.js';

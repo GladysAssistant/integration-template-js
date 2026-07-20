@@ -128,6 +128,26 @@ Tests live in [`test/`](test/) and use Node's native test runner — no extra
 test framework to install. Add a `*.test.js` file next to the ones already
 there and it is picked up automatically.
 
+## Validate before publishing
+
+Before you tag a release, you can check that your integration passes the store
+validation **locally**, without waiting for the hourly indexer. Run the store's
+validator against your integration directory:
+
+```bash
+npx github:GladysAssistant/integration-store .
+```
+
+It runs the exact same checks as the store indexer — manifest JSON & schema,
+Docker image availability (main and sub-containers), cover image (format,
+dimensions, size) and the code rules — and reports **every** problem at once so
+you can fix them in a single pass. It exits `0` when the integration is valid,
+`1` otherwise. A few things can only be confirmed once the repository is public
+(public repo, the `gladys-assistant-integration` topic, and the manifest sitting
+at the root of the default branch), and the tool tells you which ones. See the
+[integration store](https://github.com/GladysAssistant/integration-store) for
+details.
+
 ## Publish in 5 steps
 
 1. **Fork** this template (or use _Use this template_ on GitHub).

@@ -17,6 +17,11 @@ export const DEFAULT_CONFIG = {
   longitude: 2.3522,
   unit: 'celsius', // 'celsius' | 'fahrenheit'
   poll_frequency: 300, // seconds, how often sensors are refreshed
+  // Reserved key (NOT in config_schema): because the manifest declares both
+  // 'local' and 'cloud' in its `transports` field, Gladys shows a standard
+  // "Prefer the local connection" toggle and sends the user's choice here.
+  // Read-only for the integration; defaults to true.
+  GLADYS_PREFER_LOCAL: true,
 };
 
 /**
@@ -31,5 +36,7 @@ export function normalizeConfig(raw = {}) {
     latitude: Number(raw.latitude ?? DEFAULT_CONFIG.latitude),
     longitude: Number(raw.longitude ?? DEFAULT_CONFIG.longitude),
     poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
+    // The preference is a boolean; anything but an explicit false means true.
+    GLADYS_PREFER_LOCAL: raw.GLADYS_PREFER_LOCAL !== false,
   };
 }

@@ -15,13 +15,14 @@ the [`src/devices/`](./src/devices) folder (one file per device type), and every
 place where you would talk to your real hardware / cloud API is marked with a
 `DO THE WORK` comment and a `logger` call.
 
-| Device                 | Type illustrated                                                         | SDK hooks used                        |
-| ---------------------- | ------------------------------------------------------------------------ | ------------------------------------- |
-| Weather station        | Read-only sensors (temperature + humidity), **real data** via Open-Meteo | `onPoll`, `publishStates`, `onAction` |
-| Living room switch     | Binary actuator (ON/OFF)                                                 | `onSetValue`, `publishState`          |
-| Living room light      | Dimmable light (on/off **+** brightness)                                 | `onSetValue` per feature              |
-| Office plug            | Mixed: actuator **+** power metering                                     | `onSetValue`, `onPoll`                |
-| Entrance motion sensor | Push / event-driven sensor                                               | `startPush`, `publishState`           |
+| Device                 | Type illustrated                                                         | SDK hooks used                              |
+| ---------------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
+| Weather station        | Read-only sensors (temperature + humidity), **real data** via Open-Meteo | `onPoll`, `publishStates`, `onAction`       |
+| Living room switch     | Binary actuator (ON/OFF)                                                 | `onSetValue`, `publishState`                |
+| Living room light      | Dimmable light (on/off **+** brightness)                                 | `onSetValue` per feature                    |
+| Office plug            | Mixed: actuator **+** power metering, cloud/local **transport badge**    | `onSetValue`, `onPoll`, `publishTransports` |
+| Entrance motion sensor | Push / event-driven sensor                                               | `startPush`, `publishState`                 |
+| Entrance camera        | Camera images: periodic snapshot **+** on-demand fresh capture           | `publishCameraImage`, `onGetImage`          |
 
 The wiring (connection, auth, reconnection, dispatch) is in
 [`index.js`](./index.js) — you rarely need to touch it.
@@ -37,8 +38,9 @@ The wiring (connection, auth, reconnection, dispatch) is in
 │  │  ├─ weatherStation.js           #   read-only sensors (poll)
 │  │  ├─ switchDevice.js             #   binary actuator
 │  │  ├─ light.js                    #   dimmable light (on/off + brightness)
-│  │  ├─ plug.js                     #   actuator + power metering
-│  │  └─ motionSensor.js             #   push / event-driven sensor
+│  │  ├─ plug.js                     #   actuator + power metering + transport badge
+│  │  ├─ motionSensor.js             #   push / event-driven sensor
+│  │  └─ camera.js                   #   camera images (push + pull)
 │  ├─ weather.js                     # example real "driver" (Open-Meteo)
 │  └─ config.js                      # config defaults + normalization
 ├─ gladys-assistant-integration.json # manifest (name, config schema, image…)
@@ -54,7 +56,7 @@ logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
 separate so the parts you edit stay small.
 
 The plumbing you would otherwise copy into every integration comes straight
-from the SDK (v0.4.0+):
+from the SDK (v0.5.0+):
 
 - `logger` / `createLogger({ name })` — leveled console logger (`LOG_LEVEL`
   env var), with named/child loggers per module. Since SDK v0.4 the SDK also
@@ -71,7 +73,19 @@ from the SDK (v0.4.0+):
 - `gladys.onAction(key, cb)` — handler of a manifest `actions` button: the
   template declares a `test_weather` action (manifest `actions` field) and the
   weather station blueprint implements it, returning the multi-language
-  message displayed under the button.
+  message displayed under the button;
+- `gladys.publishCameraImage(externalId, image)` / `gladys.onGetImage(cb)`
+  (SDK v0.5) — the camera image channel: push a periodic snapshot and answer
+  on-demand capture requests with an `image/jpg;base64,...` string (≤ 150 KB,
+  max 12 images/minute per device). Dedicated channel: images never go through
+  the states history. See [`src/devices/camera.js`](./src/devices/camera.js);
+- `gladys.publishTransports(entries)` + `DEVICE_TRANSPORTS` (SDK v0.5) — the
+  per-device cloud/local transport badge for dual-channel devices. The
+  manifest declares `"transports": ["local", "cloud"]`, so the Configuration
+  screen shows a standard "Prefer the local connection" toggle whose value
+  arrives as the reserved, read-only config key `GLADYS_PREFER_LOCAL`
+  (boolean, default `true`). The demo plug applies the preference and reports
+  its effective transport. See [`src/devices/plug.js`](./src/devices/plug.js).
 
 The SDK offers more for integrations that need it — OAuth2 cloud flows
 (`onOAuthAuthorizeUrl` / `onOAuthCallback` + an `oauth2` config field),

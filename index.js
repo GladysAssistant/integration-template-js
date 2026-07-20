@@ -20,6 +20,7 @@ import { normalizeConfig } from './src/config.js';
 import {
   DEVICE_BLUEPRINTS,
   buildDiscoveredDevices,
+  buildTransportEntries,
   findBlueprintByDevice,
 } from './src/devices/index.js';
 
@@ -46,6 +47,19 @@ gladys.onSetValue(async (device, feature, value) => {
     throw new Error(`No command handler for ${device.external_id}`);
   }
   await blueprint.onSetValue(gladys, { device, feature, value, config });
+});
+
+// --- Camera: Gladys needs a FRESH image of a camera device -------------------
+// Triggered by the dashboard live view or a chat intent. The resolved
+// `image/jpg;base64,...` string (≤ 150 KB) is acked back to Gladys; the ack is
+// awaited under 15 s (not the usual 5 s), so a real capture fits.
+gladys.onGetImage(async (device) => {
+  logger.info(`onGetImage <- ${device.external_id}`);
+  const blueprint = findBlueprintByDevice(gladys, device);
+  if (!blueprint || typeof blueprint.onGetImage !== 'function') {
+    throw new Error(`No camera handler for ${device.external_id}`);
+  }
+  return blueprint.onGetImage(gladys, { device, config });
 });
 
 // --- Polling: Gladys asks to refresh a device --------------------------------
@@ -75,6 +89,9 @@ gladys.onConfigUpdated(async (newConfig) => {
   // Re-publish the devices: some properties (unit, frequency) depend on it.
   // publishDiscoveredDevices is idempotent (upsert by external_id).
   await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
+  // The reserved GLADYS_PREFER_LOCAL key arrives here like any other key:
+  // re-route the dual-channel devices, then reflect the ACTUAL outcome.
+  await publishDeviceTransports();
 });
 
 // --- Connection lifecycle ----------------------------------------------------
@@ -89,13 +106,18 @@ gladys.on('connected', async () => {
     // 2) (Re)publish all devices as soon as we are connected.
     await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
 
-    // 3) Start the real-time subscriptions ("push" sensors).
+    // 3) Publish the per-device transport badge (cloud/local, dual-channel
+    // devices only). Lightweight channel: on a live switch, call it again
+    // without re-publishing the devices.
+    await publishDeviceTransports();
+
+    // 4) Start the real-time subscriptions ("push" sensors, camera snapshots).
     stopPushSubscriptions();
     pushCleanups = DEVICE_BLUEPRINTS.filter((bp) => typeof bp.startPush === 'function').map((bp) =>
       bp.startPush(gladys, config),
     );
 
-    // 4) Report the application-level status, shown in the Configuration
+    // 5) Report the application-level status, shown in the Configuration
     // screen. Distinct from the container state machine: an integration can
     // be RUNNING and still disconnected from its third-party service.
     await gladys.setConnectionStatus(true);
@@ -113,6 +135,15 @@ gladys.on('connected', async () => {
 gladys.on('disconnected', () => {
   stopPushSubscriptions();
 });
+
+// Publish the effective transport of every dual-channel device
+// ('local' | 'cloud' | 'unreachable'), rendered as a badge in the Gladys UI.
+async function publishDeviceTransports() {
+  const entries = buildTransportEntries(gladys, config);
+  if (entries.length > 0) {
+    await gladys.publishTransports(entries);
+  }
+}
 
 function stopPushSubscriptions() {
   for (const cleanup of pushCleanups) {

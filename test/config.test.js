@@ -25,3 +25,9 @@ test('normalizeConfig falls back to the default for a missing numeric field', ()
   const config = normalizeConfig({ unit: 'celsius' });
   assert.equal(config.poll_frequency, DEFAULT_CONFIG.poll_frequency);
 });
+
+test('GLADYS_PREFER_LOCAL defaults to true and only an explicit false disables it', () => {
+  assert.equal(normalizeConfig().GLADYS_PREFER_LOCAL, true);
+  assert.equal(normalizeConfig({ GLADYS_PREFER_LOCAL: true }).GLADYS_PREFER_LOCAL, true);
+  assert.equal(normalizeConfig({ GLADYS_PREFER_LOCAL: false }).GLADYS_PREFER_LOCAL, false);
+});

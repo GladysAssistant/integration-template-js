@@ -2,6 +2,12 @@
 // Device type: SMART PLUG
 // Illustrates a MIXED device: a binary actuator (relay) AND a read-only
 // measurement (instantaneous power). It is both controlled and polled.
+//
+// It also illustrates the cloud/local TRANSPORT BADGE (SDK v0.5.0+): this demo
+// plug is a dual-channel device (think Tuya cloud + LAN) and reports the
+// transport it currently uses through `transport()`. The registry collects
+// those values and index.js publishes them with `gladys.publishTransports()`;
+// Gladys renders them as a badge on the device cards.
 // -----------------------------------------------------------------------------
 
 import {
@@ -9,6 +15,7 @@ import {
   DEVICE_FEATURE_CATEGORIES,
   DEVICE_FEATURE_TYPES,
   DEVICE_FEATURE_UNITS,
+  DEVICE_TRANSPORTS,
 } from '@gladysassistant/integration-sdk';
 
 const DEVICE_TYPE = 'plug';
@@ -63,6 +70,23 @@ export const plug = {
         },
       ],
     };
+  },
+
+  // Effective transport of THIS device right now ('local' | 'cloud' |
+  // 'unreachable'). The manifest declares both channels in its `transports`
+  // field, so the Configuration screen shows a standard "Prefer the local
+  // connection" toggle; the user's choice arrives as the reserved (read-only)
+  // config key GLADYS_PREFER_LOCAL. The preference is a wish, not an order:
+  // report the channel you ACTUALLY use, not the one the user asked for.
+  transport(gladys, config) {
+    // ------------------------------------------------------------------ //
+    // DO THE WORK: return the channel currently used to reach the device.
+    // e.g. if (lanSocketConnected) return DEVICE_TRANSPORTS.LOCAL;
+    //      if (cloudApiReachable)  return DEVICE_TRANSPORTS.CLOUD;
+    //      return DEVICE_TRANSPORTS.UNREACHABLE;
+    // Here we simulate a device that honors the preference.
+    // ------------------------------------------------------------------ //
+    return config.GLADYS_PREFER_LOCAL !== false ? DEVICE_TRANSPORTS.LOCAL : DEVICE_TRANSPORTS.CLOUD;
   },
 
   async onSetValue(gladys, { feature, value }) {

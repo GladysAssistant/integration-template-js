@@ -59,7 +59,7 @@ logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
 separate so the parts you edit stay small.
 
 The plumbing you would otherwise copy into every integration comes straight
-from the SDK (v0.8.0+):
+from the SDK (v0.9.0+):
 
 - `logger` / `createLogger({ name })` — leveled console logger (`LOG_LEVEL`
   env var), with named/child loggers per module. Since SDK v0.4 the SDK also
@@ -115,9 +115,16 @@ field), mediated network discovery (`scanNetwork` + the manifest
 `network_discovery` field, for UDP-broadcast / mDNS / SSDP scans from the
 core — including the active query/response variant `udp-active-broadcast`,
 SDK v0.7, where the integration forges the discovery request and the core
-broadcasts it), and communication channels (SDK v0.6: manifest
-`type: "communication"`, `publishMessage` / `onSendMessage` / `linkContact`
-for Telegram-like bots). See the
+broadcasts it), communication channels (manifest `type: "communication"`:
+bidirectional Telegram-like bots linked by code — SDK v0.6,
+`publishMessage` / `onSendMessage` / `linkContact` — and, since SDK v0.9,
+send-only notification channels — `messaging: { receive: false }` plus a
+manifest `contact_schema` describing the per-user credentials that
+`onSendMessage(contact, message)` receives), and incoming webhooks relayed
+by Gladys Plus (SDK v0.9: manifest `webhooks` field +
+`getWebhooks` / `onWebhook` / `onWebhookUpdated`, for cloud services that
+push their events Netatmo-style — the demo weather API only supports
+polling, so the template does not declare any). See the
 [SDK README](https://github.com/GladysAssistant/integration-sdk-js) for those
 patterns; this template stays focused on devices.
 

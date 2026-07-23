@@ -65,6 +65,17 @@ export const light = {
     };
   },
 
+  // Used by the `identify` manifest action (see the dynamic device select in
+  // gladys-assistant-integration.json): make THIS physical device signal
+  // itself so the user can spot it among identical hardware.
+  async identify() {
+    logger.info('Identify: blinking the bulb');
+    // ------------------------------------------------------------------ //
+    // DO THE WORK: make the bulb blink without changing its final state.
+    // e.g. await zigbee.set(ieeeAddr, { effect: 'blink' });
+    // ------------------------------------------------------------------ //
+  },
+
   async onSetValue(gladys, { feature, value }) {
     const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID);
 

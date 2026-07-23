@@ -22,6 +22,7 @@ import {
   buildDiscoveredDevices,
   buildTransportEntries,
   findBlueprintByDevice,
+  identifyDevice,
 } from './src/devices/index.js';
 
 const gladys = new GladysIntegration();
@@ -82,6 +83,16 @@ for (const blueprint of DEVICE_BLUEPRINTS) {
   }
 }
 
+// The `identify` action targets ONE device chosen by the user, so it is not
+// owned by a single blueprint. Its manifest field declares
+// `"source": "devices"` (SDK v0.7+): instead of static `options`, the
+// Configuration screen fills the select with the integration's own created
+// devices, and the handler receives the chosen external_id as a field value.
+gladys.onAction('identify', (fields) => {
+  logger.info(`Action identify <- ${fields.device}`);
+  return identifyDevice(gladys, fields.device, config);
+});
+
 // --- Configuration updated by the user ---------------------------------------
 gladys.onConfigUpdated(async (newConfig) => {
   logger.info('onConfigUpdated -> new configuration received');
@@ -138,6 +149,9 @@ gladys.on('disconnected', () => {
 
 // Publish the effective transport of every dual-channel device
 // ('local' | 'cloud' | 'unreachable'), rendered as a badge in the Gladys UI.
+// An entry can also flag a degraded state (`{ degraded: true, message }`,
+// SDK v0.7+): the badge keeps its transport color plus an orange dot, and the
+// tooltip shows the reason — see src/devices/plug.js.
 async function publishDeviceTransports() {
   const entries = buildTransportEntries(gladys, config);
   if (entries.length > 0) {

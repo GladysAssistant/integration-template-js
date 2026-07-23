@@ -10,7 +10,9 @@ import {
   buildDiscoveredDevices,
   buildTransportEntries,
   findBlueprintByDevice,
+  identifyDevice,
 } from '../src/devices/index.js';
+import { simulateLanSession } from '../src/devices/plug.js';
 import { normalizeConfig } from '../src/config.js';
 import { createFakeGladys } from './helpers/fakeGladys.js';
 
@@ -94,6 +96,43 @@ test('the demo plug honors the GLADYS_PREFER_LOCAL preference', () => {
   const plugId = DEVICE_BLUEPRINTS.find((bp) => bp.key === 'plug').deviceExternalId(gladys);
   assert.equal(local.find((e) => e.external_id === plugId).transport, DEVICE_TRANSPORTS.LOCAL);
   assert.equal(cloud.find((e) => e.external_id === plugId).transport, DEVICE_TRANSPORTS.CLOUD);
+});
+
+test('nominal transport entries never carry a leftover degraded flag', () => {
+  const entries = buildTransportEntries(gladys, config);
+  for (const entry of entries) {
+    assert.equal(entry.degraded, undefined, 'nominal entries must clear the degraded state');
+  }
+});
+
+test('the plug reports a degraded cloud fallback when the LAN session is refused', () => {
+  const plugId = DEVICE_BLUEPRINTS.find((bp) => bp.key === 'plug').deviceExternalId(gladys);
+  simulateLanSession(false);
+  try {
+    const entries = buildTransportEntries(gladys, normalizeConfig({ GLADYS_PREFER_LOCAL: true }));
+    const entry = entries.find((e) => e.external_id === plugId);
+    assert.equal(entry.transport, DEVICE_TRANSPORTS.CLOUD, 'falls back to cloud');
+    assert.equal(entry.degraded, true, 'the fallback is flagged degraded');
+    assert.ok(entry.message.en, 'the reason carries at least the mandatory `en` text');
+    assert.ok(entry.message.en.length <= 200, 'tooltip messages are capped at 200 characters');
+  } finally {
+    simulateLanSession(true);
+  }
+});
+
+test('identifyDevice signals a device that implements identify', async () => {
+  const lightId = DEVICE_BLUEPRINTS.find((bp) => bp.key === 'light').deviceExternalId(gladys);
+  const message = await identifyDevice(gladys, lightId, config);
+  assert.match(message.en, /signalling/);
+  assert.ok(message.fr, 'the message is multi-language');
+});
+
+test('identifyDevice explains when the device has no way to signal itself', async () => {
+  const weatherId = DEVICE_BLUEPRINTS.find((bp) => bp.key === 'weather-station').deviceExternalId(
+    gladys,
+  );
+  const message = await identifyDevice(gladys, weatherId, config);
+  assert.match(message.en, /no way to signal/);
 });
 
 test('the test_weather action returns a multi-language message', async () => {

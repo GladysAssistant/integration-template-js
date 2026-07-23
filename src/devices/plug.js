@@ -8,6 +8,13 @@
 // transport it currently uses through `transport()`. The registry collects
 // those values and index.js publishes them with `gladys.publishTransports()`;
 // Gladys renders them as a badge on the device cards.
+//
+// Since SDK v0.7.0 a transport entry can also carry a DEGRADED state: "it
+// works, but not in the nominal mode" — here, local preferred but the LAN
+// session is refused, so the plug falls back to cloud. Without the flag the
+// user would see a perfectly normal `cloud` badge and nothing would invite
+// them to investigate; with it, the badge keeps its transport color plus an
+// orange dot, and the tooltip shows the reason.
 // -----------------------------------------------------------------------------
 
 import {
@@ -32,6 +39,15 @@ const FEATURE = {
 
 // In-memory reflection of the real device state.
 let isOn = false;
+
+// Simulated state of the LAN session to the plug. In a real integration this
+// would reflect your actual local socket/session (rotated local key, another
+// client holding the connection...). Exported so the tests — and you, while
+// experimenting — can simulate a local failure and see the degraded badge.
+let lanSessionOk = true;
+export function simulateLanSession(ok) {
+  lanSessionOk = ok;
+}
 
 export const plug = {
   key: DEVICE_TYPE,
@@ -72,21 +88,37 @@ export const plug = {
     };
   },
 
-  // Effective transport of THIS device right now ('local' | 'cloud' |
-  // 'unreachable'). The manifest declares both channels in its `transports`
-  // field, so the Configuration screen shows a standard "Prefer the local
-  // connection" toggle; the user's choice arrives as the reserved (read-only)
-  // config key GLADYS_PREFER_LOCAL. The preference is a wish, not an order:
-  // report the channel you ACTUALLY use, not the one the user asked for.
+  // Effective transport of THIS device right now. The manifest declares both
+  // channels in its `transports` field, so the Configuration screen shows a
+  // standard "Prefer the local connection" toggle; the user's choice arrives
+  // as the reserved (read-only) config key GLADYS_PREFER_LOCAL. The
+  // preference is a wish, not an order: report the channel you ACTUALLY use,
+  // not the one the user asked for — and when you cannot honor it, say WHY
+  // with the degraded flag instead of silently falling back.
   transport(gladys, config) {
     // ------------------------------------------------------------------ //
     // DO THE WORK: return the channel currently used to reach the device.
-    // e.g. if (lanSocketConnected) return DEVICE_TRANSPORTS.LOCAL;
-    //      if (cloudApiReachable)  return DEVICE_TRANSPORTS.CLOUD;
-    //      return DEVICE_TRANSPORTS.UNREACHABLE;
-    // Here we simulate a device that honors the preference.
+    // Here we simulate a device that honors the preference, unless the LAN
+    // session is refused (flip `simulateLanSession(false)` to see it).
     // ------------------------------------------------------------------ //
-    return config.GLADYS_PREFER_LOCAL !== false ? DEVICE_TRANSPORTS.LOCAL : DEVICE_TRANSPORTS.CLOUD;
+    if (config.GLADYS_PREFER_LOCAL === false) {
+      return { transport: DEVICE_TRANSPORTS.CLOUD };
+    }
+    if (lanSessionOk) {
+      return { transport: DEVICE_TRANSPORTS.LOCAL };
+    }
+    // Local preferred but refused -> cloud fallback, flagged degraded. The
+    // message (multi-language, `en` mandatory, ≤ 200 chars per language) is
+    // shown in the badge tooltip. Publishing a later entry WITHOUT `degraded`
+    // clears the state — back to nominal, no ghost orange dot.
+    return {
+      transport: DEVICE_TRANSPORTS.CLOUD,
+      degraded: true,
+      message: {
+        en: 'Local session refused, falling back to cloud.',
+        fr: 'Session locale refusée, bascule sur le cloud.',
+      },
+    };
   },
 
   async onSetValue(gladys, { feature, value }) {

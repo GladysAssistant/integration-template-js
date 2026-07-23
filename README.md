@@ -19,8 +19,8 @@ place where you would talk to your real hardware / cloud API is marked with a
 | ---------------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
 | Weather station        | Read-only sensors (temperature + humidity), **real data** via Open-Meteo | `onPoll`, `publishStates`, `onAction`       |
 | Living room switch     | Binary actuator (ON/OFF)                                                 | `onSetValue`, `publishState`                |
-| Living room light      | Dimmable light (on/off **+** brightness)                                 | `onSetValue` per feature                    |
-| Office plug            | Mixed: actuator **+** power metering, cloud/local **transport badge**    | `onSetValue`, `onPoll`, `publishTransports` |
+| Living room light      | Dimmable light (on/off **+** brightness), `identify` action target       | `onSetValue` per feature, `identify`        |
+| Office plug            | Mixed: actuator **+** power metering, transport badge **+ degraded**     | `onSetValue`, `onPoll`, `publishTransports` |
 | Entrance motion sensor | Push / event-driven sensor                                               | `startPush`, `publishState`                 |
 | Entrance camera        | Camera images: periodic snapshot **+** on-demand fresh capture           | `publishCameraImage`, `onGetImage`          |
 
@@ -43,6 +43,9 @@ The wiring (connection, auth, reconnection, dispatch) is in
 │  │  └─ camera.js                   #   camera images (push + pull)
 │  ├─ weather.js                     # example real "driver" (Open-Meteo)
 │  └─ config.js                      # config defaults + normalization
+├─ docs/
+│  ├─ en.md                          # user documentation (re-hosted by Gladys,
+│  └─ fr.md                          #   linked from the Configuration screen)
 ├─ gladys-assistant-integration.json # manifest (name, config schema, image…)
 ├─ Dockerfile                        # Node 24 Alpine, read-only rootfs ready
 ├─ .github/workflows/release.yml     # UI-driven release: bump + tag + build
@@ -56,7 +59,7 @@ logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
 separate so the parts you edit stay small.
 
 The plumbing you would otherwise copy into every integration comes straight
-from the SDK (v0.5.0+):
+from the SDK (v0.8.0+):
 
 - `logger` / `createLogger({ name })` — leveled console logger (`LOG_LEVEL`
   env var), with named/child loggers per module. Since SDK v0.4 the SDK also
@@ -85,14 +88,36 @@ from the SDK (v0.5.0+):
   screen shows a standard "Prefer the local connection" toggle whose value
   arrives as the reserved, read-only config key `GLADYS_PREFER_LOCAL`
   (boolean, default `true`). The demo plug applies the preference and reports
-  its effective transport. See [`src/devices/plug.js`](./src/devices/plug.js).
+  its effective transport. Since SDK v0.7 an entry can also flag a
+  **degraded** state (`{ degraded: true, message }`) — "it works, but not in
+  the nominal mode": the demo plug uses it when local is preferred but the
+  LAN session is refused, so the cloud fallback shows an orange dot with the
+  reason instead of a silently normal badge. See
+  [`src/devices/plug.js`](./src/devices/plug.js);
+- dynamic device selects (SDK v0.7) — a manifest `select` field can replace
+  its static `options` with `"source": "devices"`: the Configuration screen
+  fills it with the integration's own created devices and the handler
+  receives the chosen `external_id`. The template's `identify` action uses it
+  to make the chosen device signal itself — the answer to "act on THIS
+  device" without asking the user to copy an identifier;
+- `section` config blocks + the Documentation link (SDK v0.8) — purely
+  presentational intro blocks in the manifest `config_schema` (title,
+  plain-text description, https links) for the onboarding guidance a compact
+  form cannot carry; they store no value. For the long step-by-step, the
+  Configuration screen shows a permanent **Documentation** link to the repo's
+  [`docs/en.md`](./docs/en.md) / [`docs/fr.md`](./docs/fr.md), re-hosted by
+  Gladys.
 
 The SDK offers more for integrations that need it — OAuth2 cloud flows
 (`onOAuthAuthorizeUrl` / `onOAuthCallback` + an `oauth2` config field),
 sub-containers (`getContainers`, `startContainer`… + the manifest `containers`
-field) and mediated network discovery (`scanNetwork` + the manifest
+field), mediated network discovery (`scanNetwork` + the manifest
 `network_discovery` field, for UDP-broadcast / mDNS / SSDP scans from the
-core). See the
+core — including the active query/response variant `udp-active-broadcast`,
+SDK v0.7, where the integration forges the discovery request and the core
+broadcasts it), and communication channels (SDK v0.6: manifest
+`type: "communication"`, `publishMessage` / `onSendMessage` / `linkContact`
+for Telegram-like bots). See the
 [SDK README](https://github.com/GladysAssistant/integration-sdk-js) for those
 patterns; this template stays focused on devices.
 

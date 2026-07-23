@@ -12,7 +12,11 @@
 //     as an `image/jpg;base64,...` string (cameras only)
 //   - startPush(gladys, config)   (optional): subscribe to a real-time stream
 //   - transport(gladys, config)   (optional): effective transport of the
-//     device ('local' | 'cloud' | 'unreachable'), shown as a badge in Gladys
+//     device, shown as a badge in Gladys. Either a plain string ('local' |
+//     'cloud' | 'unreachable') or an object `{ transport, degraded, message }`
+//     to also flag the "works, but not nominal" state (orange dot + tooltip)
+//   - identify(gladys, {...})     (optional): make the physical device signal
+//     itself (blink...), used by the `identify` manifest action
 //   - actions                     (optional): manifest action handlers, keyed
 //     by the action `key` declared in gladys-assistant-integration.json
 // -----------------------------------------------------------------------------
@@ -45,10 +49,42 @@ export function findBlueprintByDevice(gladys, device) {
  * Build the `publishTransports` payload: one entry per blueprint that reports
  * its effective transport (dual-channel devices). Devices with a single,
  * obvious channel simply do not implement `transport()`.
+ *
+ * A blueprint returns either a plain transport string, or an object
+ * `{ transport, degraded, message }` when it needs to flag a degraded state
+ * (SDK v0.7+): "it works, but not in the nominal mode" — e.g. local preferred
+ * but refused, falling back to cloud. Entries WITHOUT `degraded` clear a
+ * previously published degraded state, so nominal blueprints have nothing
+ * special to do.
  */
 export function buildTransportEntries(gladys, config) {
-  return DEVICE_BLUEPRINTS.filter((bp) => typeof bp.transport === 'function').map((bp) => ({
-    external_id: bp.deviceExternalId(gladys),
-    transport: bp.transport(gladys, config),
-  }));
+  return DEVICE_BLUEPRINTS.filter((bp) => typeof bp.transport === 'function').map((bp) => {
+    const reported = bp.transport(gladys, config);
+    const entry = typeof reported === 'string' ? { transport: reported } : reported;
+    return { external_id: bp.deviceExternalId(gladys), ...entry };
+  });
+}
+
+/**
+ * Handler of the `identify` manifest action: make the chosen device signal
+ * itself so the user can spot it among identical hardware.
+ *
+ * `externalId` comes from the action's dynamic select (`"source": "devices"`
+ * in the manifest): the Configuration screen populates the options with the
+ * integration's OWN created devices (label = device name, value =
+ * external_id), so the user never copies an identifier by hand.
+ */
+export async function identifyDevice(gladys, externalId, config) {
+  const blueprint = findBlueprintByDevice(gladys, { external_id: externalId });
+  if (!blueprint || typeof blueprint.identify !== 'function') {
+    return {
+      en: 'This device has no way to signal itself.',
+      fr: 'Cet appareil ne peut pas se signaler.',
+    };
+  }
+  await blueprint.identify(gladys, { config });
+  return {
+    en: 'Look around: the device is signalling itself.',
+    fr: "Regardez autour de vous : l'appareil se signale.",
+  };
 }

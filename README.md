@@ -59,14 +59,22 @@ logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
 separate so the parts you edit stay small.
 
 The plumbing you would otherwise copy into every integration comes straight
-from the SDK (v0.9.0+):
+from the SDK (v0.11.0+):
 
 - `logger` / `createLogger({ name })` — leveled console logger (`LOG_LEVEL`
   env var), with named/child loggers per module. Since SDK v0.4 the SDK also
   logs its own connection lifecycle (under the `gladys-sdk` name), so
   connectivity problems show up in `docker logs` without extra code;
 - `DEVICE_FEATURE_CATEGORIES`, `DEVICE_FEATURE_TYPES`, `DEVICE_FEATURE_UNITS`
-  — the standard Gladys categories / types / units, no manual string copying;
+  — the standard Gladys categories / types / units, no manual string copying.
+  The catalog grows with the SDK, so bumping the dependency is how you get the
+  newest ones: `battery-storage`, `doorbell` and `water-valve` categories, the
+  climate `fan-speed` / `swing-horizontal` / `swing-vertical` features and the
+  `cubic-meter-per-hour` unit (SDK v0.10), then `charging-station` and
+  `water-heater` categories plus the thermostat `mode` / `operating-state`
+  features (SDK v0.11). A recent category only renders on a Gladys that knows
+  it, so keep the manifest `gladys_version` range in sync with what you
+  publish;
 - `gladys.externalIds(type, platformId)` — builds the unique, stable device
   and feature external ids;
 - `gladys.handleShutdown(cleanup)` — graceful SIGTERM/SIGINT handling;
@@ -111,7 +119,12 @@ from the SDK (v0.9.0+):
 The SDK offers more for integrations that need it — OAuth2 cloud flows
 (`onOAuthAuthorizeUrl` / `onOAuthCallback` + an `oauth2` config field),
 sub-containers (`getContainers`, `startContainer`… + the manifest `containers`
-field), mediated network discovery (`scanNetwork` + the manifest
+field, whose published ports now come back as
+`{ container_port, protocol, host_port, label, name, browsable }` — SDK v0.11,
+`host_port` being the one Gladys allocated, `null` until it does, and `name`
+what makes it referenceable in a manifest section text through the
+`{{gladys_host}}` / `{{port:<name>}}` placeholders the frontend substitutes at
+render time), mediated network discovery (`scanNetwork` + the manifest
 `network_discovery` field, for UDP-broadcast / mDNS / SSDP scans from the
 core — including the active query/response variant `udp-active-broadcast`,
 SDK v0.7, where the integration forges the discovery request and the core
@@ -124,7 +137,15 @@ manifest `contact_schema` describing the per-user credentials that
 by Gladys Plus (SDK v0.9: manifest `webhooks` field +
 `getWebhooks` / `onWebhook` / `onWebhookUpdated`, for cloud services that
 push their events Netatmo-style — the demo weather API only supports
-polling, so the template does not declare any). See the
+polling, so the template does not declare any), and weather providers
+(SDK v0.11: manifest `type: "weather"`, `onWeatherGet` answering with the
+pivot weather format in the unit system the user asked for, plus the optional
+`onWeatherGetImage` for a vigilance map or a rain radar and
+`requestWeatherRefresh()` to nudge the core into re-pulling instead of waiting
+for its 30-minute check — a provider feeding the dashboard widget and the chat
+assistant, not devices, so it is a different integration type than this
+template's `type: "device"`, even though the demo weather station here reads
+the same kind of API). See the
 [SDK README](https://github.com/GladysAssistant/integration-sdk-js) for those
 patterns; this template stays focused on devices.
 

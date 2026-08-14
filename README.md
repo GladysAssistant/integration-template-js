@@ -216,7 +216,16 @@ details.
 
 1. **Fork** this template (or use _Use this template_ on GitHub).
 2. **Edit** the files in `src/devices/` and `gladys-assistant-integration.json` for your
-   devices, and replace `docker_image` / `cover_image` with your own.
+   devices, and replace `docker_image` / `cover_image` with your own. Pick the
+   manifest `categories` (Gladys 4.86+) your integration belongs to — 1 to 3
+   keys among `climate`, `lighting`, `energy`, `security`, `multimedia`,
+   `appliances`, `environment`, `protocols`, `network`, `notifications`,
+   `assistants`, `services` — they are the catalog shelves the integration
+   sits on (without them it only shows under "All" and in search). Declaring
+   the field requires a `gladys_version` range starting at **4.86.0 or
+   later** — older cores reject unknown manifest fields, and the store
+   validator enforces the coupling. The template declares `lighting`,
+   `security` and `environment` to match its demo devices.
 3. **Add the GitHub topic** `gladys-assistant-integration` to your repo.
 4. **Release from the GitHub UI**: open **Actions → Release → Run workflow**,
    pick `patch`, `minor` or `major`. The workflow bumps the version everywhere

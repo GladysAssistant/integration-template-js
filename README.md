@@ -59,7 +59,7 @@ logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
 separate so the parts you edit stay small.
 
 The plumbing you would otherwise copy into every integration comes straight
-from the SDK (v0.11.0+):
+from the SDK (v0.12.0+):
 
 - `logger` / `createLogger({ name })` — leveled console logger (`LOG_LEVEL`
   env var), with named/child loggers per module. Since SDK v0.4 the SDK also
@@ -72,9 +72,13 @@ from the SDK (v0.11.0+):
   climate `fan-speed` / `swing-horizontal` / `swing-vertical` features and the
   `cubic-meter-per-hour` unit (SDK v0.10), then `charging-station` and
   `water-heater` categories plus the thermostat `mode` / `operating-state`
-  features (SDK v0.11). A recent category only renders on a Gladys that knows
-  it, so keep the manifest `gladys_version` range in sync with what you
-  publish;
+  features (SDK v0.11), then the `grid-sensor` / `home-output-sensor` /
+  `maintenance` categories, the `no2` / `o3` / `so2` gas-concentration
+  sensors, the camera PTZ features (`move` / `preset` / absolute positions),
+  the solar `production` `power` feature and the dynamic `text` `select` type
+  whose per-device choices live in `supported_options` (SDK v0.12). A recent
+  category only renders on a Gladys that knows it, so keep the manifest
+  `gladys_version` range in sync with what you publish;
 - `gladys.externalIds(type, platformId)` — builds the unique, stable device
   and feature external ids;
 - `gladys.handleShutdown(cleanup)` — graceful SIGTERM/SIGINT handling;
@@ -117,8 +121,11 @@ from the SDK (v0.11.0+):
   Gladys.
 
 The SDK offers more for integrations that need it — OAuth2 cloud flows
-(`onOAuthAuthorizeUrl` / `onOAuthCallback` + an `oauth2` config field),
-sub-containers (`getContainers`, `startContainer`… + the manifest `containers`
+(`onOAuthAuthorizeUrl` / `onOAuthCallback` + an `oauth2` config field, or the
+`account_link` variant — SDK v0.12 — for providers that never redirect back:
+QR sign-in approved in the vendor app, `redirectUri` undefined, no callback,
+the integration polls the provider and reports through
+`setConnectionStatus(true)`), sub-containers (`getContainers`, `startContainer`… + the manifest `containers`
 field, whose published ports now come back as
 `{ container_port, protocol, host_port, label, name, browsable }` — SDK v0.11,
 `host_port` being the one Gladys allocated, `null` until it does, and `name`
@@ -137,7 +144,11 @@ manifest `contact_schema` describing the per-user credentials that
 by Gladys Plus (SDK v0.9: manifest `webhooks` field +
 `getWebhooks` / `onWebhook` / `onWebhookUpdated`, for cloud services that
 push their events Netatmo-style — the demo weather API only supports
-polling, so the template does not declare any), and weather providers
+polling, so the template does not declare any), Wake-on-LAN (SDK v0.12:
+`wakeOnLan(mac, options?)` + the manifest `network_wake` field — the core,
+which sits on the host network the bridge container cannot broadcast to,
+builds and emits the standard magic packet itself, rate-limited to 1 wake
+per 2 s per integration), and weather providers
 (SDK v0.11: manifest `type: "weather"`, `onWeatherGet` answering with the
 pivot weather format in the unit system the user asked for, plus the optional
 `onWeatherGetImage` for a vigilance map or a rain radar and

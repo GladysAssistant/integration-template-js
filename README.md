@@ -59,7 +59,7 @@ logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
 separate so the parts you edit stay small.
 
 The plumbing you would otherwise copy into every integration comes straight
-from the SDK (v0.12.0+):
+from the SDK (v0.13.0+):
 
 - `logger` / `createLogger({ name })` — leveled console logger (`LOG_LEVEL`
   env var), with named/child loggers per module. Since SDK v0.4 the SDK also
@@ -76,7 +76,11 @@ from the SDK (v0.12.0+):
   `maintenance` categories, the `no2` / `o3` / `so2` gas-concentration
   sensors, the camera PTZ features (`move` / `preset` / absolute positions),
   the solar `production` `power` feature and the dynamic `text` `select` type
-  whose per-device choices live in `supported_options` (SDK v0.12). A recent
+  whose per-device choices live in `supported_options` (SDK v0.12), then the
+  camera `enabled` feature (a Gladys-side privacy gate: `0` makes Gladys stop
+  polling, streaming and serving the camera image without deleting the
+  camera), the siren `alarm-mode` / `alarm-state` features and the battery
+  `charging` binary sensor (SDK v0.13). A recent
   category only renders on a Gladys that knows it, so keep the manifest
   `gladys_version` range in sync with what you publish;
 - `gladys.externalIds(type, platformId)` — builds the unique, stable device
@@ -135,7 +139,11 @@ render time), mediated network discovery (`scanNetwork` + the manifest
 `network_discovery` field, for UDP-broadcast / mDNS / SSDP scans from the
 core — including the active query/response variant `udp-active-broadcast`,
 SDK v0.7, where the integration forges the discovery request and the core
-broadcasts it), communication channels (manifest `type: "communication"`:
+broadcasts it; since SDK v0.13 the results are precisely typed: an `mdns`
+scan browses every declared entry and merges the results, and each `ssdp`
+responder comes back as `{ source_ip, source_mac?, source_port, headers }`,
+`source_mac` being a best-effort ARP-table lookup by the core — when present
+it saves asking the user for a MAC before `wakeOnLan`), communication channels (manifest `type: "communication"`:
 bidirectional Telegram-like bots linked by code — SDK v0.6,
 `publishMessage` / `onSendMessage` / `linkContact` — and, since SDK v0.9,
 send-only notification channels — `messaging: { receive: false }` plus a
@@ -153,7 +161,10 @@ per 2 s per integration), and weather providers
 pivot weather format in the unit system the user asked for, plus the optional
 `onWeatherGetImage` for a vigilance map or a rain radar and
 `requestWeatherRefresh()` to nudge the core into re-pulling instead of waiting
-for its 30-minute check — a provider feeding the dashboard widget and the chat
+for its 30-minute check. SDK v0.13 extends the pivot conditions enum with
+`freezing-rain`, `freezing-fog`, `snow-thunderstorm`, `sandstorm`, `tornado`
+and `hurricane` — keep sending the broader condition when your provider
+cannot tell them apart. A provider feeds the dashboard widget and the chat
 assistant, not devices, so it is a different integration type than this
 template's `type: "device"`, even though the demo weather station here reads
 the same kind of API). See the

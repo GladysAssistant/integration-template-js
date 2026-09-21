@@ -59,7 +59,7 @@ logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
 separate so the parts you edit stay small.
 
 The plumbing you would otherwise copy into every integration comes straight
-from the SDK (v0.13.0+):
+from the SDK (v0.14.0+):
 
 - `logger` / `createLogger({ name })` — leveled console logger (`LOG_LEVEL`
   env var), with named/child loggers per module. Since SDK v0.4 the SDK also
@@ -80,7 +80,15 @@ from the SDK (v0.13.0+):
   camera `enabled` feature (a Gladys-side privacy gate: `0` makes Gladys stop
   polling, streaming and serving the camera image without deleting the
   camera), the siren `alarm-mode` / `alarm-state` features and the battery
-  `charging` binary sensor (SDK v0.13). A recent
+  `charging` binary sensor (SDK v0.13), then the `grid-carbon-sensor`
+  category (`carbon-intensity` in the new `gram-co2eq-per-kilowatt-hour`
+  unit, plus the `carbon-free-percentage` / `renewable-percentage` shares of
+  the grid mix — the electricity of a zone, not what a device imports or
+  exports, which stays in `grid-sensor`), the temperature `probe` type (an
+  external probe wired to the device, kept out of the room average), the
+  smoke-sensor `contamination-state` / `muted` / `temporary-mute` features
+  and the single-phase Linky `smaxn1` / `sinsts1` / `imax1` fields (SDK
+  v0.14). A recent
   category only renders on a Gladys that knows it, so keep the manifest
   `gladys_version` range in sync with what you publish;
 - `gladys.externalIds(type, platformId)` — builds the unique, stable device
@@ -167,7 +175,28 @@ and `hurricane` — keep sending the broader condition when your provider
 cannot tell them apart. A provider feeds the dashboard widget and the chat
 assistant, not devices, so it is a different integration type than this
 template's `type: "device"`, even though the demo weather station here reads
-the same kind of API). See the
+the same kind of API). SDK v0.14 adds three more surfaces: the house
+location (`getHouses()` → `[{ id, name, selector, latitude, longitude }]`,
+gated by a manifest `"location": true` shown on the install screen — for an
+integration that owns its own geo-dependent logic, water restrictions or
+pollen, and polls a third party itself instead of re-asking the coordinates
+in its config; the demo weather station keeps its own `latitude` /
+`longitude` fields on purpose, they are the "coordinates to observe", not
+the home), scene triggers and actions (manifest `scene_triggers` /
+`scene_actions` in the `config_schema` field grammar +
+`publishSceneEvent(key, data)` for "this happened" — a plate recognized, an
+object detected, flat `data` of ≤ 30 primitive keys, 300 events/minute —
+and `onSceneAction(key, cb)` receiving the resolved fields and returning the
+declared scalar `outputs`; an event never sets a state, that is what
+`publishState` is for), and dashboard widgets (manifest `widgets`, up to 5,
+with `onWidgetGet` / `onWidgetGetImage` / `onWidgetAction` /
+`requestWidgetRefresh`: the integration returns a declarative content —
+`text`, `value`, `gauge`, `status`, `chart`, `card-list`, `image`, `button`,
+colors from `WIDGET_COLORS` — that the core renders with its own theme, dark
+mode and translations, no HTML; `DEBUG=gladys-integration-sdk` validates
+every content and image in dev, and `validateWidgetContent` /
+`validateWidgetImage` are exported for your tests). A widget-only or
+scene-only integration declares the manifest `type: "provider"`. See the
 [SDK README](https://github.com/GladysAssistant/integration-sdk-js) for those
 patterns; this template stays focused on devices.
 

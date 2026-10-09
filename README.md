@@ -46,10 +46,18 @@ The wiring (connection, auth, reconnection, dispatch) is in
 ├─ docs/
 │  ├─ en.md                          # user documentation (re-hosted by Gladys,
 │  └─ fr.md                          #   linked from the Configuration screen)
+├─ test/                             # unit tests (`node --test`)
 ├─ gladys-assistant-integration.json # manifest (name, config schema, image…)
 ├─ Dockerfile                        # Node 24 Alpine, read-only rootfs ready
-├─ .github/workflows/release.yml     # UI-driven release: bump + tag + build
+├─ CHANGELOG.md                      # Keep a Changelog, rolled by the Release workflow
+├─ CLAUDE.md                         # project rules for coding assistants & contributors
+├─ SECURITY.md                       # how to report a vulnerability privately
+├─ .github/workflows/ci.yml          # format, lint, tests (Node 22 + 24), Docker build
+├─ .github/workflows/release.yml     # UI-driven release: bump + changelog + tag + build
 ├─ .github/workflows/build.yml       # multi-arch build (git tag or called by release)
+├─ .github/workflows/github-release.yml # GitHub Release of every version tag
+├─ .github/scripts/release.mjs       # release helpers (manifest bump, changelog)
+├─ .github/dependabot.yml            # weekly npm / monthly GitHub Actions updates
 └─ cover.png                         # catalog cover, 800×534 px, ≤150 KB
 ```
 
@@ -218,7 +226,8 @@ automatically.
 ## Quality checks
 
 The template ships with the tooling every integration should keep. The same
-three checks run automatically on every push and pull request (see
+three checks run automatically on every push and pull request, on Node 22 and
+Node 24, along with a build of the Docker image (see
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
 
 ```bash
@@ -231,6 +240,11 @@ npm test               # Unit tests, via the built-in `node --test` runner
 Tests live in [`test/`](test/) and use Node's native test runner — no extra
 test framework to install. Add a `*.test.js` file next to the ones already
 there and it is picked up automatically.
+
+[Dependabot](.github/dependabot.yml) opens a pull request every week for the
+npm dependencies — the SDK first of all, which is how new device categories
+and features reach you — and every month for the GitHub Actions; the CI checks
+them like any other change.
 
 ## Validate before publishing
 
@@ -252,6 +266,18 @@ at the root of the default branch), and the tool tells you which ones. See the
 [integration store](https://github.com/GladysAssistant/integration-store) for
 details.
 
+The validator is not part of the CI: it also checks that the manifest
+`docker_image` exists on its registry, which is only true once the version is
+released. [`test/manifest.test.js`](test/manifest.test.js) catches, on every
+`npm test`, the store rules that are easiest to miss:
+
+- the catalog `description` holds **10 to 100 characters** per language;
+- every text is a **multi-language object** (`{ "en": "…", "fr": "…" }`):
+  `label` and `description`, but also a field `placeholder` — a plain string
+  rejects the manifest;
+- the manifest `version` matches `package.json`, and `docker_image` is tagged
+  with it (the Release workflow writes all three).
+
 ## Publish in 5 steps
 
 1. **Fork** this template (or use _Use this template_ on GitHub).
@@ -267,27 +293,37 @@ details.
    validator enforces the coupling. The template declares `lighting`,
    `security` and `environment` to match its demo devices.
 3. **Add the GitHub topic** `gladys-assistant-integration` to your repo.
-4. **Release from the GitHub UI**: open **Actions → Release → Run workflow**,
-   pick `patch`, `minor` or `major`. The workflow bumps the version everywhere
-   (`package.json` + manifest `version`/`docker_image`), pushes the `vX.Y.Z`
-   tag, and builds the `linux/amd64` + `linux/arm64` image to `ghcr.io`
-   (`:X.Y.Z` and `:latest`). No local tag, no manual version edit.
+4. **Release from the GitHub UI**: describe your changes under
+   `## [Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md), then open
+   **Actions → Release → Run workflow** and pick `patch`, `minor` or `major`.
+   The workflow bumps the version everywhere (`package.json` + manifest
+   `version`/`docker_image`), moves the changelog section under the new
+   version, pushes the `vX.Y.Z` tag, builds the `linux/amd64` + `linux/arm64`
+   image to `ghcr.io` (`:X.Y.Z` and `:latest`), then publishes the GitHub
+   Release of the tag with that changelog section as notes — the Gladys
+   Supervision page links each version to the repository's releases. No local
+   tag, no manual version edit.
 5. The decentralized indexer picks up the new manifest `version` and Gladys
    offers a one-click install / update.
 
 > Prefer the terminal? `git tag v1.0.0 && git push --tags` still works — the
-> hand-pushed tag triggers the same multi-arch build. This path only publishes
-> the Docker tags, though: it does **not** touch `package.json`,
-> `package-lock.json` or the manifest. Bump `version` (and `docker_image`) in
-> `gladys-assistant-integration.json` and commit it **before** tagging, or the
+> hand-pushed tag triggers the same multi-arch build and GitHub Release. This
+> path only publishes the Docker tags and the Release, though: it does **not**
+> touch `package.json`, `package-lock.json`, `CHANGELOG.md` or the manifest.
+> Bump `version` in `package.json` and in `gladys-assistant-integration.json`
+> (with the `docker_image` tag) and commit it **before** tagging, or the
 > indexer will keep serving the old version. The Release workflow above does
 > all of this for you.
+
+Started from the template? Replace the entries of `CHANGELOG.md` with your
+own, and turn on **Private vulnerability reporting** in the repository's
+security settings: [`SECURITY.md`](SECURITY.md) sends reporters there.
 
 Full documentation: <https://gladysassistant.com> (integrations developer guide).
 
 ## Notes
 
-- Requires **Node.js ≥ 20** (uses the built-in global `fetch`; no HTTP dep).
+- Requires **Node.js ≥ 22** (uses the built-in global `fetch`; no HTTP dep).
 - All external identifiers are prefixed with `ext:<selector>:` — always build
   them with `gladys.externalIds(type, platformId)` (or the lower-level
   `gladys.externalId(suffix)`); the server rejects anything else. Derive

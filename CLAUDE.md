@@ -34,6 +34,8 @@ pushing.
 index.js                          SDK wiring only: handlers registered before connect()
 src/devices/index.js              registry of the device blueprints + dispatch helpers
 src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+src/scenes.js                     scene action handlers (manifest `scene_actions`)
+src/widgets.js                    dashboard widget handlers (manifest `widgets`)
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
 src/weather.js                    example driver (Open-Meteo)
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
@@ -66,7 +68,8 @@ test/                             node --test; test/helpers/fakeGladys.js stands
   older cores do not know needs a higher `gladys_version` minimum
   (`categories`: 4.86.0; `widgets`, `scene_triggers`, `scene_actions`,
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
-  code (defaults, action handlers): change both sides together.
+  code (defaults, action, scene and widget handlers): change both sides
+  together.
 - **User-facing text** is bilingual (English and French): action messages,
   manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,

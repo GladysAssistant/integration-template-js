@@ -19,6 +19,8 @@
 //     itself (blink...), used by the `identify` manifest action
 //   - actions                     (optional): manifest action handlers, keyed
 //     by the action `key` declared in gladys-assistant-integration.json
+//   - sceneTriggers               (optional): keys of the manifest
+//     `scene_triggers` the device fires with `gladys.publishSceneEvent`
 // -----------------------------------------------------------------------------
 
 import { weatherStation } from './weatherStation.js';
@@ -29,6 +31,10 @@ import { motionSensor } from './motionSensor.js';
 import { camera } from './camera.js';
 
 export const DEVICE_BLUEPRINTS = [weatherStation, switchDevice, light, plug, motionSensor, camera];
+
+// Every scene trigger key the devices fire: each one must be declared in the
+// manifest `scene_triggers` field, or the core answers 404 (see the tests).
+export const SCENE_TRIGGER_KEYS = DEVICE_BLUEPRINTS.flatMap((bp) => bp.sceneTriggers ?? []);
 
 /**
  * Build the discovery payload for Gladys (all devices).
@@ -66,8 +72,25 @@ export function buildTransportEntries(gladys, config) {
 }
 
 /**
+ * Make a device signal itself (blink...) so the user can spot it among
+ * identical hardware. Resolves `false` when the device has no way to.
+ *
+ * Written once, reached from three surfaces: the `identify` manifest action
+ * (Configuration screen), the `identify_device` scene action (src/scenes.js)
+ * and the button of the `demo_status` dashboard widget (src/widgets.js).
+ */
+export async function signalDevice(gladys, externalId, config) {
+  const blueprint = findBlueprintByDevice(gladys, { external_id: externalId });
+  if (!blueprint || typeof blueprint.identify !== 'function') {
+    return false;
+  }
+  await blueprint.identify(gladys, { config });
+  return true;
+}
+
+/**
  * Handler of the `identify` manifest action: make the chosen device signal
- * itself so the user can spot it among identical hardware.
+ * itself, and say so under the button.
  *
  * `externalId` comes from the action's dynamic select (`"source": "devices"`
  * in the manifest): the Configuration screen populates the options with the
@@ -75,14 +98,12 @@ export function buildTransportEntries(gladys, config) {
  * external_id), so the user never copies an identifier by hand.
  */
 export async function identifyDevice(gladys, externalId, config) {
-  const blueprint = findBlueprintByDevice(gladys, { external_id: externalId });
-  if (!blueprint || typeof blueprint.identify !== 'function') {
+  if (!(await signalDevice(gladys, externalId, config))) {
     return {
       en: 'This device has no way to signal itself.',
       fr: 'Cet appareil ne peut pas se signaler.',
     };
   }
-  await blueprint.identify(gladys, { config });
   return {
     en: 'Look around: the device is signalling itself.',
     fr: "Regardez autour de vous : l'appareil se signale.",

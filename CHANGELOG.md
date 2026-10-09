@@ -12,6 +12,8 @@ the notes of the version's GitHub Release.
 
 ### Added
 
+- A working example of scene triggers, scene actions and dashboard widgets
+  (Gladys 5.1.0 or later).
 - `CHANGELOG.md`, rolled by the Release workflow.
 - A GitHub Release for every version, with its changelog section as notes: the
   Gladys Supervision page links each version to the repository's releases.

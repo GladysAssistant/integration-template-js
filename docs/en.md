@@ -31,6 +31,27 @@ when it runs degraded (local refused, cloud fallback).
 - **Identify a device** — pick one of your devices in the list and it will
   signal itself (the demo light "blinks" in the logs).
 
+## Scenes
+
+The integration adds its own cards to the scene editor (Gladys 5.1 or
+later), under the **Integrations** category:
+
+- **Motion detected** (trigger) — starts the scene when a demo motion sensor
+  sees something move. Optionally pick the sensor and what moved (person,
+  animal); left empty, any detection matches. The following actions can
+  read what moved with `{{triggerEvent.data.target}}`.
+- **Identify a device** (action) — makes the chosen device signal itself.
+  It returns whether the device could signal itself, so the following
+  actions can depend on it.
+
+## Dashboard
+
+Add the **Demo status** widget to a dashboard: it shows the live
+temperature of the weather station and the power of the office plug, the
+connection the plug currently uses (orange when degraded) and the observed
+location. Its **Identify the light** button makes the demo light signal
+itself.
+
 ## Troubleshooting
 
 The integration logs everything it does: check the integration logs from the

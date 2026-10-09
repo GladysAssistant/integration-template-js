@@ -24,6 +24,8 @@ import {
   findBlueprintByDevice,
   identifyDevice,
 } from './src/devices/index.js';
+import { SCENE_ACTIONS } from './src/scenes.js';
+import { WIDGETS, refreshWidgets } from './src/widgets.js';
 
 const gladys = new GladysIntegration();
 
@@ -93,6 +95,29 @@ gladys.onAction('identify', (fields) => {
   return identifyDevice(gladys, fields.device, config);
 });
 
+// --- Scene actions: operations a scene author placed in a scene -------------
+// Each action declared in the `scene_actions` field of the manifest is
+// registered per key (SDK v0.14+, Gladys 5.1+). The handler receives the
+// RESOLVED fields and returns the declared outputs (see src/scenes.js). Scene
+// TRIGGERS need no handler: the devices fire them with publishSceneEvent (see
+// src/devices/motionSensor.js).
+for (const [actionKey, handler] of Object.entries(SCENE_ACTIONS)) {
+  gladys.onSceneAction(actionKey, (fields) => handler(gladys, { fields, config }));
+}
+
+// --- Dashboard widgets -------------------------------------------------------
+// Each widget declared in the `widgets` field of the manifest is registered
+// per key (SDK v0.14+, Gladys 5.1+): Gladys pulls its content (ack awaited
+// under 15 s) and relays the taps on its `button` actions (see src/widgets.js).
+for (const [widgetKey, widget] of Object.entries(WIDGETS)) {
+  gladys.onWidgetGet(widgetKey, (request) => widget.get(gladys, { ...request, config }));
+  if (typeof widget.action === 'function') {
+    gladys.onWidgetAction(widgetKey, (actionKey, params, { settings }) =>
+      widget.action(gladys, { actionKey, params, settings, config }),
+    );
+  }
+}
+
 // --- Configuration updated by the user ---------------------------------------
 gladys.onConfigUpdated(async (newConfig) => {
   logger.info('onConfigUpdated -> new configuration received');
@@ -103,6 +128,9 @@ gladys.onConfigUpdated(async (newConfig) => {
   // The reserved GLADYS_PREFER_LOCAL key arrives here like any other key:
   // re-route the dual-channel devices, then reflect the ACTUAL outcome.
   await publishDeviceTransports();
+  // The dashboard widget shows config-derived values (plug connection,
+  // observed location): nudge it instead of waiting for its content TTL.
+  refreshWidgets(gladys);
 });
 
 // --- Connection lifecycle ----------------------------------------------------

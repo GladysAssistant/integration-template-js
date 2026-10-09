@@ -7,7 +7,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { DEVICE_BLUEPRINTS } from '../src/devices/index.js';
+import { DEVICE_BLUEPRINTS, SCENE_TRIGGER_KEYS } from '../src/devices/index.js';
+import { SCENE_ACTIONS } from '../src/scenes.js';
+import { WIDGETS } from '../src/widgets.js';
 import { DEFAULT_CONFIG } from '../src/config.js';
 
 const manifest = JSON.parse(
@@ -16,6 +18,31 @@ const manifest = JSON.parse(
 
 // Actions registered outside the blueprints (see index.js).
 const REGISTRY_LEVEL_ACTIONS = ['identify'];
+
+// Manifest fields older Gladys releases reject as unknown, with the first
+// release accepting them. The store validator refuses a manifest whose
+// `gladys_version` minimum is lower: these tests catch it before a release.
+const CAPABILITY_FIELDS = ['scene_triggers', 'scene_actions', 'widgets'];
+const CAPABILITY_MIN_GLADYS_VERSION = [5, 1, 0];
+const CATEGORIES_MIN_GLADYS_VERSION = [4, 86, 0];
+
+const keysOf = (list) => (list ?? []).map((entry) => entry.key);
+
+// Minimum version of the manifest `gladys_version` range, e.g. [5, 1, 0].
+function minGladysVersion() {
+  const match = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\.(\d+)/);
+  assert.ok(match, 'gladys_version must declare a minimum version');
+  return match.slice(1).map(Number);
+}
+
+function isAtLeast(version, required) {
+  for (let i = 0; i < required.length; i += 1) {
+    if (version[i] !== required[i]) {
+      return version[i] > required[i];
+    }
+  }
+  return true;
+}
 
 test('every manifest action has a registered handler', () => {
   const handled = new Set([
@@ -34,13 +61,51 @@ test('declaring catalog categories requires Gladys >= 4.86.0', () => {
   // manifest declaring `categories` must not claim compatibility below the
   // first release that accepts it.
   assert.ok(manifest.categories.length >= 1 && manifest.categories.length <= 3);
-  const minVersion = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\.\d+/);
-  assert.ok(minVersion, 'gladys_version must declare a minimum version');
-  const [, major, minor] = minVersion.map(Number);
   assert.ok(
-    major > 4 || (major === 4 && minor >= 86),
+    isAtLeast(minGladysVersion(), CATEGORIES_MIN_GLADYS_VERSION),
     `categories requires gladys_version >= 4.86.0, got "${manifest.gladys_version}"`,
   );
+});
+
+test('declaring scene triggers, scene actions or widgets requires Gladys >= 5.1.0', () => {
+  const declared = CAPABILITY_FIELDS.filter((field) => manifest[field] !== undefined);
+  assert.ok(declared.length > 0, 'the template demonstrates the capability fields');
+  assert.ok(
+    isAtLeast(minGladysVersion(), CAPABILITY_MIN_GLADYS_VERSION),
+    `${declared.join(', ')} requires gladys_version >= 5.1.0, got "${manifest.gladys_version}"`,
+  );
+});
+
+test('every scene_actions key has an onSceneAction handler, and vice versa', () => {
+  const declared = keysOf(manifest.scene_actions);
+  for (const key of declared) {
+    assert.equal(typeof SCENE_ACTIONS[key], 'function', `scene action "${key}" has no handler`);
+  }
+  for (const key of Object.keys(SCENE_ACTIONS)) {
+    assert.ok(declared.includes(key), `handler "${key}" is not declared in scene_actions`);
+  }
+});
+
+test('every widgets key has an onWidgetGet handler, and vice versa', () => {
+  const declared = keysOf(manifest.widgets);
+  for (const key of declared) {
+    assert.equal(typeof WIDGETS[key]?.get, 'function', `widget "${key}" has no content handler`);
+  }
+  for (const key of Object.keys(WIDGETS)) {
+    assert.ok(declared.includes(key), `widget "${key}" is not declared in widgets`);
+  }
+});
+
+test('every scene trigger the code fires is declared in scene_triggers, and vice versa', () => {
+  // An undeclared key is a 404 on publishSceneEvent; a declared key nobody
+  // fires is a dead card in the scene editor.
+  const declared = keysOf(manifest.scene_triggers);
+  for (const key of SCENE_TRIGGER_KEYS) {
+    assert.ok(declared.includes(key), `trigger "${key}" is fired but not declared`);
+  }
+  for (const key of declared) {
+    assert.ok(SCENE_TRIGGER_KEYS.includes(key), `trigger "${key}" is declared but never fired`);
+  }
 });
 
 test('config_schema defaults stay consistent with DEFAULT_CONFIG', () => {
@@ -84,6 +149,9 @@ test('dynamic selects declare a source and no static options', () => {
   const allFields = [
     ...manifest.config_schema,
     ...(manifest.actions ?? []).flatMap((a) => a.fields ?? []),
+    ...(manifest.scene_triggers ?? []).flatMap((t) => t.fields ?? []),
+    ...(manifest.scene_actions ?? []).flatMap((a) => a.fields ?? []),
+    ...(manifest.widgets ?? []).flatMap((w) => w.settings ?? []),
   ];
   const dynamicSelects = allFields.filter((f) => f.source !== undefined);
   assert.ok(dynamicSelects.length > 0, 'the template demonstrates a dynamic select');

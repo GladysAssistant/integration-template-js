@@ -15,14 +15,25 @@ the [`src/devices/`](./src/devices) folder (one file per device type), and every
 place where you would talk to your real hardware / cloud API is marked with a
 `DO THE WORK` comment and a `logger` call.
 
-| Device                 | Type illustrated                                                         | SDK hooks used                              |
-| ---------------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
-| Weather station        | Read-only sensors (temperature + humidity), **real data** via Open-Meteo | `onPoll`, `publishStates`, `onAction`       |
-| Living room switch     | Binary actuator (ON/OFF)                                                 | `onSetValue`, `publishState`                |
-| Living room light      | Dimmable light (on/off **+** brightness), `identify` action target       | `onSetValue` per feature, `identify`        |
-| Office plug            | Mixed: actuator **+** power metering, transport badge **+ degraded**     | `onSetValue`, `onPoll`, `publishTransports` |
-| Entrance motion sensor | Push / event-driven sensor                                               | `startPush`, `publishState`                 |
-| Entrance camera        | Camera images: periodic snapshot **+** on-demand fresh capture           | `publishCameraImage`, `onGetImage`          |
+| Device                 | Type illustrated                                                         | SDK hooks used                                   |
+| ---------------------- | ------------------------------------------------------------------------ | ------------------------------------------------ |
+| Weather station        | Read-only sensors (temperature + humidity), **real data** via Open-Meteo | `onPoll`, `publishStates`, `onAction`            |
+| Living room switch     | Binary actuator (ON/OFF)                                                 | `onSetValue`, `publishState`                     |
+| Living room light      | Dimmable light (on/off **+** brightness), `identify` action target       | `onSetValue` per feature, `identify`             |
+| Office plug            | Mixed: actuator **+** power metering, transport badge **+ degraded**     | `onSetValue`, `onPoll`, `publishTransports`      |
+| Entrance motion sensor | Push / event-driven sensor **+** scene trigger                           | `startPush`, `publishState`, `publishSceneEvent` |
+| Entrance camera        | Camera images: periodic snapshot **+** on-demand fresh capture           | `publishCameraImage`, `onGetImage`               |
+
+On top of the devices, it demonstrates the three **capability** surfaces of
+SDK v0.14 — scene triggers, scene actions and dashboard widgets, **Gladys
+5.1+** — built on the same demo devices (see
+[below](#scene-triggers-scene-actions-and-dashboard-widgets)):
+
+| Capability                     | Manifest key      | Code                                                           | SDK hooks used                                          |
+| ------------------------------ | ----------------- | -------------------------------------------------------------- | ------------------------------------------------------- |
+| Scene trigger: motion detected | `motion_detected` | [`src/devices/motionSensor.js`](./src/devices/motionSensor.js) | `publishSceneEvent`                                     |
+| Scene action: identify device  | `identify_device` | [`src/scenes.js`](./src/scenes.js)                             | `onSceneAction`                                         |
+| Dashboard widget: demo status  | `demo_status`     | [`src/widgets.js`](./src/widgets.js)                           | `onWidgetGet`, `onWidgetAction`, `requestWidgetRefresh` |
 
 The wiring (connection, auth, reconnection, dispatch) is in
 [`index.js`](./index.js) — you rarely need to touch it.
@@ -39,8 +50,10 @@ The wiring (connection, auth, reconnection, dispatch) is in
 │  │  ├─ switchDevice.js             #   binary actuator
 │  │  ├─ light.js                    #   dimmable light (on/off + brightness)
 │  │  ├─ plug.js                     #   actuator + power metering + transport badge
-│  │  ├─ motionSensor.js             #   push / event-driven sensor
+│  │  ├─ motionSensor.js             #   push / event-driven sensor + scene trigger
 │  │  └─ camera.js                   #   camera images (push + pull)
+│  ├─ scenes.js                      # scene actions (Gladys 5.1+)
+│  ├─ widgets.js                     # dashboard widget (Gladys 5.1+)
 │  ├─ weather.js                     # example real "driver" (Open-Meteo)
 │  └─ config.js                      # config defaults + normalization
 ├─ docs/
@@ -182,23 +195,78 @@ integration that owns its own geo-dependent logic, water restrictions or
 pollen, and polls a third party itself instead of re-asking the coordinates
 in its config; the demo weather station keeps its own `latitude` /
 `longitude` fields on purpose, they are the "coordinates to observe", not
-the home), scene triggers and actions (manifest `scene_triggers` /
-`scene_actions` in the `config_schema` field grammar +
-`publishSceneEvent(key, data)` for "this happened" — a plate recognized, an
-object detected, flat `data` of ≤ 30 primitive keys, 300 events/minute —
-and `onSceneAction(key, cb)` receiving the resolved fields and returning the
-declared scalar `outputs`; an event never sets a state, that is what
-`publishState` is for), and dashboard widgets (manifest `widgets`, up to 5,
-with `onWidgetGet` / `onWidgetGetImage` / `onWidgetAction` /
-`requestWidgetRefresh`: the integration returns a declarative content —
-`text`, `value`, `gauge`, `status`, `chart`, `card-list`, `image`, `button`,
-colors from `WIDGET_COLORS` — that the core renders with its own theme, dark
-mode and translations, no HTML; `DEBUG=gladys-integration-sdk` validates
-every content and image in dev, and `validateWidgetContent` /
-`validateWidgetImage` are exported for your tests). A widget-only or
-scene-only integration declares the manifest `type: "provider"`. See the
-[SDK README](https://github.com/GladysAssistant/integration-sdk-js) for those
-patterns; this template stays focused on devices.
+the home), scene triggers and actions, and dashboard widgets — the last two
+are demonstrated by this template, see the next section. See the
+[SDK README](https://github.com/GladysAssistant/integration-sdk-js) for the
+other patterns; this template stays focused on devices and the capabilities
+built on them.
+
+## Scene triggers, scene actions and dashboard widgets
+
+Since SDK v0.14, any integration — `device` included — can extend the scene
+editor and the dashboard on top of its primary contract, through three
+manifest capability fields. The template declares one of each, built on its
+demo devices:
+
+- **Scene trigger** `motion_detected` (manifest `scene_triggers`) — every
+  detection of the demo motion sensor fires
+  `gladys.publishSceneEvent('motion_detected', { device, target })`. The
+  scene author filters on the sensor (a `"source": "devices"` select) and on
+  what moved (a `multi_select`), then reads `{{triggerEvent.data.target}}`
+  in the following actions. The state (0/1) stays a device feature published
+  with `publishState`: the event says "this happened, with these details".
+  One event per transition, flat `data` (≤ 30 primitive keys), only the keys
+  declared in `fields` / `variables` kept, 300 events/minute. No handler to
+  register: see [`src/devices/motionSensor.js`](./src/devices/motionSensor.js).
+- **Scene action** `identify_device` (manifest `scene_actions`) — the
+  `identify` operation of the Configuration screen, reachable from a scene.
+  `gladys.onSceneAction(key, cb)` receives the RESOLVED `fields` and returns
+  the declared scalar `outputs` (`{ signalled: true }`). A device that cannot
+  signal itself is an output, not a failure: a scene action is never a
+  condition, the scene author gates on the output. See
+  [`src/scenes.js`](./src/scenes.js).
+- **Dashboard widget** `demo_status` (manifest `widgets`, up to 5) — two
+  **live** `value` tiles bound to device features (`device_feature`: they
+  follow the published states, nothing to refresh), a `status` list computed
+  by the integration (plug connection, observed location) and a `button`
+  whose `action` reaches `gladys.onWidgetAction` (with the `params` the
+  content declared, never user input) and answers a toast. The content is
+  declarative — `text`, `value`, `gauge`, `status`, `chart`, `card-list`,
+  `image`, `button`, colors from `WIDGET_COLORS` — and the core renders it
+  with its own theme, dark mode and translations, no HTML. The core caches it
+  until its `ttl_seconds`; `index.js` calls `gladys.requestWidgetRefresh(key)`
+  after every (re)connection and config update, which change the computed
+  rows. See
+  [`src/widgets.js`](./src/widgets.js).
+
+> **Requires Gladys ≥ 5.1.0.** Older cores reject unknown manifest fields, so
+> declaring `scene_triggers`, `scene_actions` or `widgets` requires a
+> `gladys_version` range starting at **`>=5.1.0`** — the store validator
+> rejects anything lower, and `test/manifest.test.js` catches it before you
+> tag. That is why the template declares `>=5.1.0`. To support older
+> releases, remove the three fields from the manifest along with the code
+> serving them (`src/scenes.js`, `src/widgets.js`, their wiring in
+> `index.js` and the `publishSceneEvent` call of the motion sensor).
+
+The tests show how to keep the declarations and the code in sync:
+
+- [`test/manifest.test.js`](./test/manifest.test.js) — every `scene_actions`
+  key has an `onSceneAction` handler, every `widgets` key an `onWidgetGet`
+  handler, every trigger the devices fire is declared in `scene_triggers`
+  (and the other way round), and `gladys_version` is `>=5.1.0`;
+- [`test/scenes.test.js`](./test/scenes.test.js) — one event per detection,
+  event `data` and action `outputs` limited to their declared keys;
+- [`test/widgets.test.js`](./test/widgets.test.js) —
+  `assert.deepEqual(validateWidgetContent(content), [])` (exported by the
+  SDK: `[]` means rendered exactly as sent, nothing dropped or truncated),
+  live tiles bound to published features, every button action handled;
+- [`test/helpers/fakeGladys.js`](./test/helpers/fakeGladys.js) records the
+  `publishSceneEvent` and `requestWidgetRefresh` calls.
+
+In development, `DEBUG=gladys-integration-sdk` makes the SDK validate every
+widget content (and image) the handlers resolve and log the violations. A
+widget-only or scene-only integration declares the manifest
+`type: "provider"` instead: no device surface, a configuration-only page.
 
 ## Run it locally
 
@@ -265,7 +333,9 @@ details.
    the field requires a `gladys_version` range starting at **4.86.0 or
    later** — older cores reject unknown manifest fields, and the store
    validator enforces the coupling. The template declares `lighting`,
-   `security` and `environment` to match its demo devices.
+   `security` and `environment` to match its demo devices. Keeping the scene
+   and widget capability fields raises that minimum to **5.1.0** (see
+   [above](#scene-triggers-scene-actions-and-dashboard-widgets)).
 3. **Add the GitHub topic** `gladys-assistant-integration` to your repo.
 4. **Release from the GitHub UI**: open **Actions → Release → Run workflow**,
    pick `patch`, `minor` or `major`. The workflow bumps the version everywhere

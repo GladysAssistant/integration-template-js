@@ -72,10 +72,19 @@ export const motionSensor = {
 
     // ------------------------------------------------------------------ //
     // DO THE WORK: subscribe to your hardware real-time stream.
-    // e.g. mqttClient.on('message', (topic, payload) => {
-    //        if (topic === 'entrance/motion') {
-    //          gladys.publishState(ids.feature(FEATURE.MOTION),
-    //                              payload === 'true' ? 1 : 0);
+    // e.g. let motionBefore = false;
+    //      mqttClient.on('message', async (topic, payload) => {
+    //        if (topic !== 'entrance/motion') return;
+    //        // e.g. {"motion": true, "target": "person"}
+    //        const { motion, target } = JSON.parse(payload);
+    //        // A scene event on the 0 -> 1 EDGE only: a retained or repeated
+    //        // `motion: true` frame is not a new detection (300 events/min).
+    //        const isNewDetection = motion && !motionBefore;
+    //        motionBefore = motion;
+    //        await gladys.publishState(ids.feature(FEATURE.MOTION), motion ? 1 : 0);
+    //        if (isNewDetection) {
+    //          await gladys.publishSceneEvent(MOTION_DETECTED_TRIGGER,
+    //                                         { device: ids.device, target });
     //        }
     //      });
     //

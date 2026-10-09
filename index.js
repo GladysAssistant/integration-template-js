@@ -149,6 +149,10 @@ gladys.on('connected', async () => {
     // devices only). Lightweight channel: on a live switch, call it again
     // without re-publishing the devices.
     await publishDeviceTransports();
+    // The widget's computed rows (plug connection, observed location) follow
+    // the config and the transports just re-published, and the nudges sent
+    // while the socket was down were dropped: re-sync open dashboards too.
+    refreshWidgets(gladys);
 
     // 4) Start the real-time subscriptions ("push" sensors, camera snapshots).
     stopPushSubscriptions();

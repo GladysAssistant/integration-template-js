@@ -78,8 +78,8 @@ export const WIDGETS = {
       logger.debug(`onWidgetGet <- ${DEMO_STATUS_WIDGET}`);
       return {
         // Reload policy: the computed parts below only change with the
-        // config, and index.js nudges the widget when it does (see
-        // refreshWidgets) — the TTL is just a safety net.
+        // config, and index.js nudges the widget on every (re)connection and
+        // config update (see refreshWidgets) — the TTL is just a safety net.
         ttl_seconds: 300,
         components: [
           // Device-bound tiles: LIVE, they follow the published states over
@@ -158,8 +158,9 @@ export const WIDGETS = {
  * Freshness nudge: ask the core to re-pull every widget NOW instead of
  * waiting for the content TTL. Call it when you KNOW a computed content
  * changed (here: the config, which drives the plug transport and the observed
- * location). Fire-and-forget, rate-limited core-side to 1 per 10 s per widget,
- * dropped silently while disconnected.
+ * location) — and after every (re)connection, since the nudges are
+ * fire-and-forget: rate-limited core-side to 1 per 10 s per widget, dropped
+ * silently while disconnected.
  */
 export function refreshWidgets(gladys) {
   for (const key of Object.keys(WIDGETS)) {

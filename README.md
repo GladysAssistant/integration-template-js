@@ -235,7 +235,8 @@ demo devices:
   `image`, `button`, colors from `WIDGET_COLORS` — and the core renders it
   with its own theme, dark mode and translations, no HTML. The core caches it
   until its `ttl_seconds`; `index.js` calls `gladys.requestWidgetRefresh(key)`
-  when the config changes the computed rows. See
+  after every (re)connection and config update, which change the computed
+  rows. See
   [`src/widgets.js`](./src/widgets.js).
 
 > **Requires Gladys ≥ 5.1.0.** Older cores reject unknown manifest fields, so

@@ -22,6 +22,7 @@ the notes of the version's GitHub Release.
 - Manifest tests: `version` matches `package.json`, `docker_image` is tagged
   with it, descriptions hold 10 to 100 characters, placeholders are
   multi-language objects.
+- The latitude and longitude fields show an example value as placeholder.
 
 ### Changed
 

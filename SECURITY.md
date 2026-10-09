@@ -8,6 +8,10 @@ forum post.
 Report it privately through GitHub instead: open the **Security** tab of this
 repository, then **Report a vulnerability**.
 
+No such button? Private reporting is not enabled yet: open an issue that only
+asks the maintainers for a private contact, without any detail of the problem,
+and send the report there.
+
 Include, when you can:
 
 - the version of the integration and of Gladys;

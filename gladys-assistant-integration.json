@@ -36,6 +36,7 @@
         "en": "Latitude used for the demo weather sensor.",
         "fr": "Latitude utilisée par le capteur météo de démonstration."
       },
+      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
       "required": true,
       "default": 48.8566,
       "min": -90,
@@ -49,6 +50,7 @@
         "en": "Longitude used for the demo weather sensor.",
         "fr": "Longitude utilisée par le capteur météo de démonstration."
       },
+      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
       "required": true,
       "default": 2.3522,
       "min": -180,

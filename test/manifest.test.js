@@ -130,7 +130,9 @@ test('the catalog description holds 10 to 100 characters per language', () => {
 
 test('field placeholders are multi-language objects', () => {
   // Like `label` and `description`: a plain string rejects the manifest.
-  for (const field of allFields.filter((f) => f.placeholder !== undefined)) {
+  const withPlaceholder = allFields.filter((f) => f.placeholder !== undefined);
+  assert.ok(withPlaceholder.length > 0, 'the template demonstrates a placeholder');
+  for (const field of withPlaceholder) {
     assert.equal(typeof field.placeholder, 'object', `field "${field.key}": placeholder`);
     assert.ok(field.placeholder.en, `field "${field.key}": placeholder needs an English text`);
   }

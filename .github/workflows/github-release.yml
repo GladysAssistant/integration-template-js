@@ -61,15 +61,21 @@ jobs:
               continue
             fi
 
-            notes="$( (git show "${tag}:CHANGELOG.md" 2>/dev/null || true) |
-              node .github/scripts/release.mjs notes "${tag#v}")"
+            # Only a tag without CHANGELOG.md (tagged before it existed) falls
+            # back to generated notes: any other git error fails the run.
+            notes="${RUNNER_TEMP}/notes-${tag}.md"
+            : >"$notes"
+            if git cat-file -e "${tag}:CHANGELOG.md" 2>/dev/null; then
+              git show "${tag}:CHANGELOG.md" |
+                node .github/scripts/release.mjs notes "${tag#v}" >"$notes"
+            fi
 
             # Back-filling oldest first must not mark an old version as latest.
             is_latest=false
             if [ "$tag" = "$latest" ]; then is_latest=true; fi
 
-            if [ -n "$notes" ]; then
-              gh release create "$tag" --verify-tag --title "$tag" --notes "$notes" --latest="$is_latest"
+            if [ -s "$notes" ]; then
+              gh release create "$tag" --verify-tag --title "$tag" --notes-file "$notes" --latest="$is_latest"
             else
               gh release create "$tag" --verify-tag --title "$tag" --generate-notes --latest="$is_latest"
             fi

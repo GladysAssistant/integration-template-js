@@ -13,6 +13,19 @@ import { DEFAULT_CONFIG } from '../src/config.js';
 const manifest = JSON.parse(
   await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
 );
+const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+
+// Every list of form fields the manifest can declare (same field grammar).
+const allFields = [
+  ...(manifest.config_schema ?? []),
+  ...(manifest.contact_schema ?? []),
+  ...[
+    ...(manifest.actions ?? []),
+    ...(manifest.scene_triggers ?? []),
+    ...(manifest.scene_actions ?? []),
+  ].flatMap((item) => item.fields ?? []),
+  ...(manifest.widgets ?? []).flatMap((widget) => widget.settings ?? []),
+];
 
 // Actions registered outside the blueprints (see index.js).
 const REGISTRY_LEVEL_ACTIONS = ['identify'];
@@ -81,10 +94,6 @@ test('section fields are purely presentational', () => {
 });
 
 test('dynamic selects declare a source and no static options', () => {
-  const allFields = [
-    ...manifest.config_schema,
-    ...(manifest.actions ?? []).flatMap((a) => a.fields ?? []),
-  ];
   const dynamicSelects = allFields.filter((f) => f.source !== undefined);
   assert.ok(dynamicSelects.length > 0, 'the template demonstrates a dynamic select');
   for (const field of dynamicSelects) {
@@ -94,5 +103,35 @@ test('dynamic selects declare a source and no static options', () => {
       undefined,
       `field "${field.key}": declaring source and options together rejects the manifest`,
     );
+  }
+});
+
+test('the manifest version is the package version, and the image is tagged with it', () => {
+  // The Release workflow writes all three: a mismatch means one was edited by
+  // hand, and Gladys would offer a version whose image is another one.
+  assert.equal(manifest.version, pkg.version, 'manifest version must match package.json');
+  assert.ok(
+    manifest.docker_image.endsWith(`:${manifest.version}`),
+    `docker_image must be tagged :${manifest.version}, got "${manifest.docker_image}"`,
+  );
+});
+
+test('the catalog description holds 10 to 100 characters per language', () => {
+  // A store rule (the catalog card is short): a longer text rejects the
+  // manifest.
+  assert.ok(manifest.description.en, 'the description needs an English text');
+  for (const [lang, text] of Object.entries(manifest.description)) {
+    assert.ok(
+      text.length >= 10 && text.length <= 100,
+      `description.${lang} has ${text.length} characters (10 to 100 allowed)`,
+    );
+  }
+});
+
+test('field placeholders are multi-language objects', () => {
+  // Like `label` and `description`: a plain string rejects the manifest.
+  for (const field of allFields.filter((f) => f.placeholder !== undefined)) {
+    assert.equal(typeof field.placeholder, 'object', `field "${field.key}": placeholder`);
+    assert.ok(field.placeholder.en, `field "${field.key}": placeholder needs an English text`);
   }
 });

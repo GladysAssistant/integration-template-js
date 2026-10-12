@@ -15,14 +15,14 @@ the [`src/devices/`](./src/devices) folder (one file per device type), and every
 place where you would talk to your real hardware / cloud API is marked with a
 `DO THE WORK` comment and a `logger` call.
 
-| Device                 | Type illustrated                                                         | SDK hooks used                                   |
-| ---------------------- | ------------------------------------------------------------------------ | ------------------------------------------------ |
-| Weather station        | Read-only sensors (temperature + humidity), **real data** via Open-Meteo | `onPoll`, `publishStates`, `onAction`            |
-| Living room switch     | Binary actuator (ON/OFF)                                                 | `onSetValue`, `publishState`                     |
-| Living room light      | Dimmable light (on/off **+** brightness), `identify` action target       | `onSetValue` per feature, `identify`             |
-| Office plug            | Mixed: actuator **+** power metering, transport badge **+ degraded**     | `onSetValue`, `onPoll`, `publishTransports`      |
-| Entrance motion sensor | Push / event-driven sensor **+** scene trigger                           | `startPush`, `publishState`, `publishSceneEvent` |
-| Entrance camera        | Camera images: periodic snapshot **+** on-demand fresh capture           | `publishCameraImage`, `onGetImage`               |
+| Device                 | Type illustrated                                                         | SDK hooks used                                                      |
+| ---------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| Weather station        | Read-only sensors (temperature + humidity), **real data** via Open-Meteo | `onPoll`, `publishStates`, `onAction`                               |
+| Living room switch     | Binary actuator (ON/OFF)                                                 | `onSetValue`, `publishState`                                        |
+| Living room light      | Dimmable light (on/off **+** brightness), `identify` action target       | `onSetValue` per feature, `identify`                                |
+| Office plug            | Mixed: actuator **+** power metering, transport badge **+ degraded**     | `onSetValue`, `onPoll`, `publishChangedStates`, `publishTransports` |
+| Entrance motion sensor | Push / event-driven sensor **+** scene trigger                           | `startPush`, `publishState`, `publishSceneEvent`                    |
+| Entrance camera        | Camera images: periodic snapshot **+** on-demand fresh capture           | `publishCameraImage`, `onGetImage`                                  |
 
 On top of the devices, it demonstrates the three **capability** surfaces of
 SDK v0.14 — scene triggers, scene actions and dashboard widgets, **Gladys
@@ -80,7 +80,7 @@ logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
 separate so the parts you edit stay small.
 
 The plumbing you would otherwise copy into every integration comes straight
-from the SDK (v0.14.0+):
+from the SDK (v0.15.0+):
 
 - `logger` / `createLogger({ name })` — leveled console logger (`LOG_LEVEL`
   env var), with named/child loggers per module. Since SDK v0.4 the SDK also
@@ -109,11 +109,26 @@ from the SDK (v0.14.0+):
   external probe wired to the device, kept out of the room average), the
   smoke-sensor `contamination-state` / `muted` / `temporary-mute` features
   and the single-phase Linky `smaxn1` / `sinsts1` / `imax1` fields (SDK
-  v0.14). A recent
+  v0.14), then the thermostat `preset` feature — which temperature to aim
+  for, next to the `mode` that says what the machine does (SDK v0.15). A recent
   category only renders on a Gladys that knows it, so keep the manifest
   `gladys_version` range in sync with what you publish;
 - `gladys.externalIds(type, platformId)` — builds the unique, stable device
   and feature external ids;
+- `should_poll` + `DEVICE_POLL_FREQUENCIES` (SDK v0.15) — Gladys calls
+  `onPoll` only for a device published with `should_poll: true` and a
+  `poll_frequency` **in milliseconds** among `DEVICE_POLL_FREQUENCIES` (1 s
+  to 1 min); any other value makes Gladys refuse the whole discovery list
+  with a `400`. Both are read once, when the user creates the device, and a
+  minute is the slowest pace: the weather station and the plug declare
+  `EVERY_MINUTES`, and `createPoller` in
+  [`src/devices/index.js`](./src/devices/index.js) applies the slower
+  refresh interval of the config by skipping the polls in between;
+- `gladys.publishChangedStates(states, { heartbeat })` (SDK v0.15) — the
+  `publishStates` format, minus the values that did not change since the
+  last call: the host API accepts 300 states per minute, sized for changes,
+  not snapshots. The demo plug publishes its power reading with it, so an
+  idle plug sends its 0 W once, then every 30 minutes;
 - `gladys.handleShutdown(cleanup)` — graceful SIGTERM/SIGINT handling;
 - `gladys.setConnectionStatus(connected, message?)` — application-level
   connection status shown in the Configuration screen (the template reports it
@@ -204,7 +219,17 @@ pollen, and polls a third party itself instead of re-asking the coordinates
 in its config; the demo weather station keeps its own `latitude` /
 `longitude` fields on purpose, they are the "coordinates to observe", not
 the home), scene triggers and actions, and dashboard widgets — the last two
-are demonstrated by this template, see the next section. See the
+are demonstrated by this template, see the next section. SDK v0.15 adds
+calendar providers (manifest `type: "calendar"`: the integration syncs the
+calendars of the users who enabled it, the core stores them), energy
+contracts (manifest `energy_contracts`: tariff templates offered in the
+Gladys contract wizard, the calendars they need, and
+`publishEnergyConsumption` for suppliers whose readings arrive after the
+fact), `"source": "houses"` selects (the user picks one of the Gladys houses,
+the handler receives its selector), forms on widget buttons (the values the
+user typed reach `onWidgetAction` as `values`, next to `settings`) and
+`parseMdnsTxt(txt)`, which turns the raw TXT entries of an `mdns` scan into
+an object. See the
 [SDK README](https://github.com/GladysAssistant/integration-sdk-js) for the
 other patterns; this template stays focused on devices and the capabilities
 built on them.
@@ -268,8 +293,8 @@ The tests show how to keep the declarations and the code in sync:
   `assert.deepEqual(validateWidgetContent(content), [])` (exported by the
   SDK: `[]` means rendered exactly as sent, nothing dropped or truncated),
   live tiles bound to published features, every button action handled;
-- [`test/helpers/fakeGladys.js`](./test/helpers/fakeGladys.js) records the
-  `publishSceneEvent` and `requestWidgetRefresh` calls.
+- the fake Gladys of the SDK (see [Quality checks](#quality-checks)) records
+  the `publishSceneEvent` and `requestWidgetRefresh` calls.
 
 In development, `DEBUG=gladys-integration-sdk` makes the SDK validate every
 widget content (and image) the handlers resolve and log the violations. A
@@ -308,6 +333,17 @@ npm test               # Unit tests, via the built-in `node --test` runner
 Tests live in [`test/`](test/) and use Node's native test runner — no extra
 test framework to install. Add a `*.test.js` file next to the ones already
 there and it is picked up automatically.
+
+The tests pass the device modules a fake Gladys from the SDK,
+`createFakeGladys()` from `@gladysassistant/integration-sdk/testing` (SDK
+v0.15): a real `GladysIntegration` whose transport is an in-memory Gladys.
+It records what Gladys would receive (`gladys.fake.states`,
+`discoveredDevices`, `sceneEvents`, `widgetRefreshes`…) and refuses the
+payloads the host API refuses, with the same `400`: an invalid category,
+unit or `poll_frequency` fails `npm test`, not the user's discovery. It
+also plays Gladys' side of the WebSocket (`gladys.fake.poll(device)`,
+`setValue`, `action`…) — see the
+[SDK README](https://github.com/GladysAssistant/integration-sdk-js#testing-your-integration).
 
 [Dependabot](.github/dependabot.yml) opens a pull request every week for the
 npm dependencies — the SDK first of all, which is how new device categories

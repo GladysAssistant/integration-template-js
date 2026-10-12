@@ -6,7 +6,8 @@
 //   - key                        : short identifier (used in logs)
 //   - deviceExternalId(gladys)   : the device external_id (for dispatch)
 //   - buildDevice(gladys, config): the discovery payload sent to Gladys
-//   - onPoll(gladys, config)      (optional): periodic read
+//   - onPoll(gladys, config)      (optional): periodic read, for a device
+//     published with `should_poll: true` (see createPoller below)
 //   - onSetValue(gladys, {...})   (optional): run a user command
 //   - onGetImage(gladys, {...})   (optional): fresh camera capture, resolved
 //     as an `image/jpg;base64,...` string (cameras only)
@@ -23,6 +24,7 @@
 //     `scene_triggers` the device fires with `gladys.publishSceneEvent`
 // -----------------------------------------------------------------------------
 
+import { DEVICE_POLL_FREQUENCIES } from '@gladysassistant/integration-sdk';
 import { weatherStation } from './weatherStation.js';
 import { switchDevice } from './switchDevice.js';
 import { light } from './light.js';
@@ -49,6 +51,44 @@ export function buildDiscoveredDevices(gladys, config) {
  */
 export function findBlueprintByDevice(gladys, device) {
   return DEVICE_BLUEPRINTS.find((bp) => bp.deviceExternalId(gladys) === device.external_id);
+}
+
+// Gladys' poll ticks drift by a few milliseconds: a read due within the next
+// half-minute runs now, so a 300 s interval does not slip to 360 s.
+const POLL_TOLERANCE_MS = DEVICE_POLL_FREQUENCIES.EVERY_MINUTES / 2;
+
+/**
+ * Create the `onPoll` dispatcher: route the poll to the owner blueprint, at
+ * the refresh interval the user chose (`poll_frequency` config, in seconds).
+ *
+ * Gladys polls a device at a fixed pace, read once when the device is
+ * created and at most once a minute (DEVICE_POLL_FREQUENCIES). The polled
+ * devices declare that minute, and the slower interval of the config is
+ * applied here by skipping the polls in between: the user can change it at
+ * any time, without re-creating the devices.
+ *
+ * Resolves `true` when the device was read, `false` when the poll was
+ * skipped. A read that throws is retried at the next poll.
+ */
+export function createPoller() {
+  const lastReads = new Map();
+  return async function pollDevice(gladys, device, config) {
+    const blueprint = findBlueprintByDevice(gladys, device);
+    if (!blueprint || typeof blueprint.onPoll !== 'function') {
+      return false;
+    }
+    const now = Date.now();
+    const lastRead = lastReads.get(device.external_id);
+    if (
+      lastRead !== undefined &&
+      now - lastRead < config.poll_frequency * 1000 - POLL_TOLERANCE_MS
+    ) {
+      return false;
+    }
+    await blueprint.onPoll(gladys, config);
+    lastReads.set(device.external_id, now);
+    return true;
+  };
 }
 
 /**

@@ -22,6 +22,7 @@ import {
   DEVICE_FEATURE_CATEGORIES,
   DEVICE_FEATURE_TYPES,
   DEVICE_FEATURE_UNITS,
+  DEVICE_POLL_FREQUENCIES,
   DEVICE_TRANSPORTS,
 } from '@gladysassistant/integration-sdk';
 
@@ -36,6 +37,8 @@ const FEATURE = {
   ON_OFF: 'on-off',
   POWER: 'power',
 };
+
+const POWER_HEARTBEAT_MS = 30 * 60 * 1000;
 
 // In-memory reflection of the real device state.
 let isOn = false;
@@ -56,12 +59,14 @@ export const plug = {
     return gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID).device;
   },
 
-  buildDevice(gladys, config) {
+  buildDevice(gladys) {
     const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID);
     return {
       name: 'Office plug',
       external_id: ids.device,
-      poll_frequency: config.poll_frequency, // to refresh the power reading
+      // Polled to refresh the power reading (see weatherStation.js).
+      should_poll: true,
+      poll_frequency: DEVICE_POLL_FREQUENCIES.EVERY_MINUTES,
       features: [
         {
           name: 'On/Off',
@@ -139,6 +144,13 @@ export const plug = {
     // ------------------------------------------------------------------ //
     const power = isOn ? Math.round(120 + Math.random() * 15) : 0;
     logger.info(`Measured power: ${power} W`);
-    await gladys.publishState(ids.feature(FEATURE.POWER), power);
+    // An idle plug reads 0 W poll after poll: publishChangedStates (SDK
+    // v0.15) only sends a value that changed, which keeps a large fleet under
+    // the 300 states/minute limit of the host API. The heartbeat re-sends an
+    // unchanged value every 30 minutes, so it stays recently dated in Gladys.
+    await gladys.publishChangedStates(
+      [{ device_feature_external_id: ids.feature(FEATURE.POWER), state: power }],
+      { heartbeat: POWER_HEARTBEAT_MS },
+    );
   },
 };

@@ -18,6 +18,8 @@ metering, a motion sensor and a camera.
 1. Open the **Configuration** tab of the integration.
 2. Set the **latitude** and **longitude** the demo weather station should
    observe (they default to Paris), and pick your temperature unit.
+   The **refresh interval** sets how often the weather station and the
+   plug's power are read: every 5 minutes by default, every minute at most.
 3. Save: the devices appear in the **Discovery** tab, ready to be added.
 
 The **Prefer the local connection** toggle drives the demo plug: it reports

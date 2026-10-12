@@ -16,7 +16,10 @@ export const DEFAULT_CONFIG = {
   latitude: 48.8566, // Paris
   longitude: 2.3522,
   unit: 'celsius', // 'celsius' | 'fahrenheit'
-  poll_frequency: 300, // seconds, how often sensors are refreshed
+  // Seconds between two reads of the polled sensors. Gladys polls at most once
+  // a minute: slower intervals are applied by skipping polls (see
+  // createPoller in src/devices/index.js).
+  poll_frequency: 300,
   // Reserved key (NOT in config_schema): because the manifest declares both
   // 'local' and 'cloud' in its `transports` field, Gladys shows a standard
   // "Prefer the local connection" toggle and sends the user's choice here.

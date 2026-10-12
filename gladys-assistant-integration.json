@@ -72,12 +72,12 @@
       "type": "number",
       "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
       "description": {
-        "en": "How often sensors are polled, in seconds.",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes."
+        "en": "How often sensors are polled, in seconds (one minute minimum).",
+        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
       },
       "required": false,
       "default": 300,
-      "min": 30,
+      "min": 60,
       "max": 3600
     }
   ],

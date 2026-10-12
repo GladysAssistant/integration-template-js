@@ -21,6 +21,7 @@ import {
   DEVICE_BLUEPRINTS,
   buildDiscoveredDevices,
   buildTransportEntries,
+  createPoller,
   findBlueprintByDevice,
   identifyDevice,
 } from './src/devices/index.js';
@@ -66,13 +67,13 @@ gladys.onGetImage(async (device) => {
 });
 
 // --- Polling: Gladys asks to refresh a device --------------------------------
+// Gladys polls the devices published with `should_poll: true` once a minute;
+// the poller reads them at the interval the user chose in the config.
+const pollDevice = createPoller();
 gladys.onPoll(async (device) => {
-  const blueprint = findBlueprintByDevice(gladys, device);
-  if (!blueprint || typeof blueprint.onPoll !== 'function') {
-    logger.debug(`onPoll ignored (no polling) for ${device.external_id}`);
-    return;
+  if (!(await pollDevice(gladys, device, config))) {
+    logger.debug(`onPoll skipped (not due) for ${device.external_id}`);
   }
-  await blueprint.onPoll(gladys, config);
 });
 
 // --- Manifest actions: buttons in the Configuration screen -------------------
@@ -122,7 +123,7 @@ for (const [widgetKey, widget] of Object.entries(WIDGETS)) {
 gladys.onConfigUpdated(async (newConfig) => {
   logger.info('onConfigUpdated -> new configuration received');
   config = normalizeConfig(newConfig);
-  // Re-publish the devices: some properties (unit, frequency) depend on it.
+  // Re-publish the devices: some properties (the temperature unit) depend on it.
   // publishDiscoveredDevices is idempotent (upsert by external_id).
   await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
   // The reserved GLADYS_PREFER_LOCAL key arrives here like any other key:

@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
 import { DEVICE_BLUEPRINTS } from '../src/devices/index.js';
 import { MOTION_DETECTED_TRIGGER, motionSensor } from '../src/devices/motionSensor.js';
 import { SCENE_ACTIONS } from '../src/scenes.js';
 import { normalizeConfig } from '../src/config.js';
-import { createFakeGladys } from './helpers/fakeGladys.js';
 
 const manifest = JSON.parse(
   await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
@@ -27,14 +27,14 @@ test('the motion sensor fires one motion_detected event per detection, none on t
   try {
     t.mock.timers.tick(60_000);
     await flush();
-    assert.equal(gladys.sceneEvents.length, 1, 'one detection, one event');
-    assert.equal(gladys.sceneEvents[0].key, MOTION_DETECTED_TRIGGER);
-    assert.equal(gladys.published.at(-1).state, 1, 'the state is still published');
+    assert.equal(gladys.fake.sceneEvents.length, 1, 'one detection, one event');
+    assert.equal(gladys.fake.sceneEvents[0].key, MOTION_DETECTED_TRIGGER);
+    assert.equal(gladys.fake.states.at(-1).state, 1, 'the state is still published');
 
     t.mock.timers.tick(10_000);
     await flush();
-    assert.equal(gladys.published.at(-1).state, 0, 'the detection is cleared');
-    assert.equal(gladys.sceneEvents.length, 1, 'the clear fires no event');
+    assert.equal(gladys.fake.states.at(-1).state, 0, 'the detection is cleared');
+    assert.equal(gladys.fake.sceneEvents.length, 1, 'the clear fires no event');
   } finally {
     stopPush();
   }
@@ -50,7 +50,7 @@ test('motion_detected data only carries keys the trigger declares', async (t) =>
   } finally {
     stopPush();
   }
-  const [{ data }] = gladys.sceneEvents;
+  const [{ data }] = gladys.fake.sceneEvents;
   const trigger = declarationOf('scene_triggers', MOTION_DETECTED_TRIGGER);
   // The core keeps the `fields` keys (filters) and the `variables` keys
   // (exposed to the scene): any other key would be silently dropped.

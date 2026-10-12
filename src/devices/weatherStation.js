@@ -9,6 +9,7 @@ import {
   DEVICE_FEATURE_CATEGORIES,
   DEVICE_FEATURE_TYPES,
   DEVICE_FEATURE_UNITS,
+  DEVICE_POLL_FREQUENCIES,
 } from '@gladysassistant/integration-sdk';
 import { fetchWeather } from '../weather.js';
 
@@ -41,8 +42,13 @@ export const weatherStation = {
     return {
       name: 'Weather station (Open-Meteo demo)',
       external_id: ids.device,
-      // Gladys will call onPoll at this interval (in seconds).
-      poll_frequency: config.poll_frequency,
+      // Gladys calls onPoll only with BOTH fields set. `poll_frequency` is in
+      // milliseconds and must be one of DEVICE_POLL_FREQUENCIES, or Gladys
+      // refuses the whole publication (400). It is read once, when the user
+      // creates the device: the user's own refresh interval is applied by the
+      // poll dispatcher instead (createPoller in ./index.js).
+      should_poll: true,
+      poll_frequency: DEVICE_POLL_FREQUENCIES.EVERY_MINUTES,
       features: [
         {
           name: 'Temperature',

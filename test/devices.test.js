@@ -3,18 +3,20 @@ import assert from 'node:assert/strict';
 import {
   DEVICE_FEATURE_CATEGORIES,
   DEVICE_FEATURE_TYPES,
+  DEVICE_POLL_FREQUENCIES,
   DEVICE_TRANSPORTS,
 } from '@gladysassistant/integration-sdk';
+import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
 import {
   DEVICE_BLUEPRINTS,
   buildDiscoveredDevices,
   buildTransportEntries,
+  createPoller,
   findBlueprintByDevice,
   identifyDevice,
 } from '../src/devices/index.js';
 import { simulateLanSession } from '../src/devices/plug.js';
 import { normalizeConfig } from '../src/config.js';
-import { createFakeGladys } from './helpers/fakeGladys.js';
 
 const gladys = createFakeGladys();
 const config = normalizeConfig();
@@ -35,6 +37,92 @@ test('buildDiscoveredDevices returns one payload per blueprint', () => {
     assert.ok(device.external_id, 'each device has an external_id');
     assert.ok(Array.isArray(device.features) && device.features.length > 0);
   }
+});
+
+test('Gladys accepts the discovery payload', async () => {
+  // The SDK fake checks the payload like the host API does: external_id
+  // prefix, known category/type/unit, poll_frequency... A refusal is a 400
+  // for the WHOLE list, so no device would show up in the Discovery tab.
+  const fresh = createFakeGladys();
+  await fresh.publishDiscoveredDevices(buildDiscoveredDevices(fresh, config));
+  assert.equal(fresh.fake.discoveredDevices.length, DEVICE_BLUEPRINTS.length);
+});
+
+test('Gladys polls exactly the devices that implement onPoll', () => {
+  const frequencies = Object.values(DEVICE_POLL_FREQUENCIES);
+  for (const bp of DEVICE_BLUEPRINTS) {
+    const device = bp.buildDevice(gladys, config);
+    if (typeof bp.onPoll === 'function') {
+      assert.equal(device.should_poll, true, `${bp.key}: without should_poll, never polled`);
+      assert.ok(frequencies.includes(device.poll_frequency), `${bp.key}: invalid poll_frequency`);
+    } else {
+      assert.notEqual(device.should_poll, true, `${bp.key}: polled for nothing`);
+    }
+  }
+});
+
+test('the poller reads a device at the refresh interval of the config', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'] });
+  const fresh = createFakeGladys();
+  const pollDevice = createPoller();
+  const plug = {
+    external_id: DEVICE_BLUEPRINTS.find((bp) => bp.key === 'plug').deviceExternalId(fresh),
+  };
+  const everyFiveMinutes = normalizeConfig({ poll_frequency: 300 });
+
+  assert.equal(await pollDevice(fresh, plug, everyFiveMinutes), true, 'the first poll reads');
+  for (let minute = 1; minute < 5; minute += 1) {
+    t.mock.timers.tick(DEVICE_POLL_FREQUENCIES.EVERY_MINUTES);
+    assert.equal(
+      await pollDevice(fresh, plug, everyFiveMinutes),
+      false,
+      `skipped at ${minute} min`,
+    );
+  }
+  // Gladys' tick may land a little early: the read is still due.
+  t.mock.timers.tick(DEVICE_POLL_FREQUENCIES.EVERY_MINUTES - 50);
+  assert.equal(await pollDevice(fresh, plug, everyFiveMinutes), true, 'read again at 5 min');
+});
+
+test('the poller retries a failed read at the next poll', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'] });
+  const pollDevice = createPoller();
+  const station = {
+    external_id: DEVICE_BLUEPRINTS.find((bp) => bp.key === 'weather-station').deviceExternalId(
+      gladys,
+    ),
+  };
+  t.mock.method(globalThis, 'fetch', async () => {
+    throw new Error('network down');
+  });
+  await assert.rejects(pollDevice(gladys, station, config), /network down/);
+
+  globalThis.fetch.mock.mockImplementation(async () => ({
+    ok: true,
+    json: async () => ({ current: { temperature_2m: 21.4, relative_humidity_2m: 55 } }),
+  }));
+  t.mock.timers.tick(DEVICE_POLL_FREQUENCIES.EVERY_MINUTES);
+  assert.equal(await pollDevice(gladys, station, config), true, 'not delayed by the failure');
+  assert.equal(gladys.fake.lastState(`${station.external_id}:temperature`), 21.4);
+});
+
+test('the poller ignores a device that has nothing to poll', async () => {
+  const pollDevice = createPoller();
+  const switchId = DEVICE_BLUEPRINTS.find((bp) => bp.key === 'switch').deviceExternalId(gladys);
+  assert.equal(await pollDevice(gladys, { external_id: switchId }, config), false);
+  assert.equal(await pollDevice(gladys, { external_id: 'does-not-exist' }, config), false);
+});
+
+test('an idle plug publishes its 0 W once, then only as a heartbeat', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'] });
+  const fresh = createFakeGladys();
+  const plug = DEVICE_BLUEPRINTS.find((bp) => bp.key === 'plug');
+  await plug.onPoll(fresh, config);
+  await plug.onPoll(fresh, config);
+  assert.equal(fresh.fake.states.length, 1, 'an unchanged value is not sent again');
+  t.mock.timers.tick(30 * 60 * 1000);
+  await plug.onPoll(fresh, config);
+  assert.equal(fresh.fake.states.length, 2, 're-sent after 30 minutes');
 });
 
 test('device external_ids are unique across the catalog', () => {

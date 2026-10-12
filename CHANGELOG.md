@@ -29,8 +29,18 @@ the notes of the version's GitHub Release.
 ### Changed
 
 - Node.js 22 or later is required (Node 20 is end-of-life).
+- Integration SDK 0.15.0. The tests now run against the fake Gladys of the
+  SDK, which refuses the payloads Gladys refuses.
+- The refresh interval is one minute minimum, the fastest Gladys polls a
+  device. The plug's power is only sent when it changes, and every 30
+  minutes otherwise.
 
 ### Fixed
+
+- Gladys refused the devices of the Discovery tab: the weather station and
+  the plug declared their poll frequency in seconds instead of one of the
+  values Gladys accepts, and were never polled. They now poll every minute,
+  and the readings follow the refresh interval of the configuration.
 
 - The release commit no longer fails `npm run format:check`: the Release
   workflow updates the manifest `version` and `docker_image` in place instead

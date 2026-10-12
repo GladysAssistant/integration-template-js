@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateWidgetContent } from '@gladysassistant/integration-sdk';
+import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
 import { buildDiscoveredDevices } from '../src/devices/index.js';
 import { simulateLanSession } from '../src/devices/plug.js';
 import { DEMO_STATUS_WIDGET, WIDGETS, refreshWidgets } from '../src/widgets.js';
 import { normalizeConfig } from '../src/config.js';
-import { createFakeGladys } from './helpers/fakeGladys.js';
 
 const gladys = createFakeGladys();
 const config = normalizeConfig();
@@ -71,7 +71,7 @@ test('an unknown widget action fails, so the user sees the error', async () => {
 });
 
 test('refreshWidgets nudges every widget', () => {
-  const fake = createFakeGladys();
-  refreshWidgets(fake);
-  assert.deepEqual(fake.widgetRefreshes, Object.keys(WIDGETS));
+  const fresh = createFakeGladys();
+  refreshWidgets(fresh);
+  assert.deepEqual(fresh.fake.widgetRefreshes, Object.keys(WIDGETS));
 });

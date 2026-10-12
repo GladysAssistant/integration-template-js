@@ -19,7 +19,9 @@ mouvement et une caméra.
 1. Ouvrez l'onglet **Configuration** de l'intégration.
 2. Renseignez la **latitude** et la **longitude** que la station météo de
    démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température.
+   de température. L'**intervalle de rafraîchissement** règle la fréquence
+   de lecture de la station météo et de la puissance de la prise : toutes
+   les 5 minutes par défaut, toutes les minutes au plus.
 3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
    prêts à être ajoutés.
 

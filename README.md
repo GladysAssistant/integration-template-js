@@ -403,8 +403,9 @@ released. [`test/manifest.test.js`](test/manifest.test.js) catches, on every
    `## [Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md), then open
    **Actions → Release → Run workflow** and pick `patch`, `minor` or `major`.
    The workflow bumps the version everywhere (`package.json` + manifest
-   `version`/`docker_image`), moves the changelog section under the new
-   version, pushes the `vX.Y.Z` tag, builds the `linux/amd64` + `linux/arm64`
+   `version`/`docker_image`, and the `docker_image` of the sub-containers
+   running the integration's own image), moves the changelog section under
+   the new version, pushes the `vX.Y.Z` tag, builds the `linux/amd64` + `linux/arm64`
    image to `ghcr.io` (`:X.Y.Z` and `:latest`), then publishes the GitHub
    Release of the tag with that changelog section as notes — the Gladys
    Supervision page links each version to the repository's releases. No local

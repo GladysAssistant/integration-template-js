@@ -47,5 +47,9 @@ the notes of the version's GitHub Release.
   of re-printing the whole file with `jq`.
 - The integration can write to `/data`: the image creates the directory owned
   by the `node` user, a new Docker volume was owned by root.
+- A sub-container running the integration's own image follows it to the new
+  tag at each release, as well as in the manifest of the build summary: it kept
+  the previous tag, which may not exist on the registry. Sub-containers on a
+  third-party image (a broker, a database...) keep theirs.
 
 [Unreleased]: https://github.com/GladysAssistant/integration-template-js/commits/main

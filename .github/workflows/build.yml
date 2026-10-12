@@ -112,9 +112,17 @@ jobs:
           IMAGE_REF: ${{ steps.meta.outputs.image_ref }}
         run: |
           # Manifest with `docker_image` pointing at the image just pushed,
-          # ready to paste into Gladys developer mode.
-          manifest=$(jq --arg image "$IMAGE_REF" '.docker_image = $image' \
-            gladys-assistant-integration.json)
+          # ready to paste into Gladys developer mode. Same rule as the Release
+          # workflow (bumpManifest in .github/scripts/release.mjs): the
+          # sub-containers running the integration's own image follow it, the
+          # third-party ones keep theirs.
+          manifest=$(jq --arg image "$IMAGE_REF" '
+            def name: sub("@.*$"; "") | sub(":[^/]*$"; "");
+            [.docker_image, $image | strings | name] as $own
+            | .docker_image = $image
+            | (.containers[]? | select(.docker_image | strings | name | IN($own[])))
+                .docker_image = $image
+            ' gladys-assistant-integration.json)
           {
             echo "## Docker build summary"
             echo ""

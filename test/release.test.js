@@ -48,6 +48,42 @@ test('bumpManifest leaves the image of a sub-container alone', () => {
   assert.equal(manifest.docker_image, 'ghcr.io/me/my-integration:1.1.0');
 });
 
+test('bumpManifest points the sub-containers running its own image at the release', async () => {
+  const text = `{
+  "version": "1.0.0",
+  "docker_image": "ghcr.io/me/my-integration:1.0.0",
+  "containers": [
+    { "name": "worker", "docker_image": "ghcr.io/me/my-integration:1.0.0" },
+    { "name": "stale", "docker_image": "ghcr.io/me/my-integration:0.9.0" },
+    { "name": "mqtt", "docker_image": "eclipse-mosquitto:2.0.20" },
+    { "name": "lookalike", "docker_image": "ghcr.io/me/my-integration-db:1.0.0" }
+  ]
+}
+`;
+  const bumped = bumpManifest(text, '1.1.0', 'ghcr.io/me/my-integration:1.1.0');
+  const images = JSON.parse(bumped).containers.map((container) => container.docker_image);
+  assert.deepEqual(images, [
+    'ghcr.io/me/my-integration:1.1.0',
+    'ghcr.io/me/my-integration:1.1.0',
+    'eclipse-mosquitto:2.0.20',
+    'ghcr.io/me/my-integration-db:1.0.0',
+  ]);
+  await assertPrettierClean(bumped, manifestPath);
+});
+
+test('bumpManifest follows the image to a new name, and reads a registry port', () => {
+  // A repository created from the template releases under its own name.
+  const text = `{
+  "version": "1.0.0",
+  "docker_image": "localhost:5000/template:1.0.0",
+  "containers": [{ "name": "worker", "docker_image": "localhost:5000/template:1.0.0" }]
+}
+`;
+  const manifest = JSON.parse(bumpManifest(text, '1.0.1', 'ghcr.io/me/mine:1.0.1'));
+  assert.equal(manifest.docker_image, 'ghcr.io/me/mine:1.0.1');
+  assert.equal(manifest.containers[0].docker_image, 'ghcr.io/me/mine:1.0.1');
+});
+
 test('bumpManifest refuses a manifest without a top-level version', () => {
   assert.throws(() => bumpManifest('{\n  "name": "x"\n}\n', '1.0.0', 'img:1.0.0'), /"version"/);
 });

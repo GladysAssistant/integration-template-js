@@ -2,9 +2,9 @@
 // Release helpers, run by the Release and GitHub releases workflows.
 //
 //   node .github/scripts/release.mjs prepare <version> <docker-image> <repo-url>
-//     Points the manifest at the new release (`version` + `docker_image`) and
-//     moves the `## [Unreleased]` section of CHANGELOG.md under
-//     `## [<version>] - <today>`.
+//     Points the manifest at the new release (`version` + `docker_image`, and
+//     the sub-containers running the integration's own image) and moves the
+//     `## [Unreleased]` section of CHANGELOG.md under `## [<version>] - <today>`.
 //
 //   node .github/scripts/release.mjs notes <version> < CHANGELOG.md
 //     Prints the changelog section of <version> (nothing when there is none):
@@ -25,14 +25,32 @@ const CHANGELOG_FILE = 'CHANGELOG.md';
 const UNRELEASED_HEADING = '## [Unreleased]';
 
 /**
+ * Name of a Docker image reference, without its tag or digest:
+ * `ghcr.io/me/repo:1.2.0` -> `ghcr.io/me/repo`. The tag is what follows the
+ * last colon after the last slash (a registry port, `host:5000/repo`, is not).
+ * @param {string} ref - Image reference.
+ * @returns {string} The image name.
+ */
+function imageName(ref) {
+  const name = ref.split('@')[0];
+  const tag = name.indexOf(':', name.lastIndexOf('/') + 1);
+  return tag === -1 ? name : name.slice(0, tag);
+}
+
+/**
  * Set the top-level `version` and `docker_image` of a manifest, leaving every
- * other byte of the file untouched.
+ * other byte of the file untouched. A sub-container (`containers` field) that
+ * runs the integration's own image follows it to the new tag: its previous tag
+ * may not even exist on the registry. Any other sub-container (a broker, a
+ * database...) pins a third-party image the release does not publish, and
+ * keeps it.
  * @param {string} text - Manifest content (Prettier-formatted JSON).
  * @param {string} version - Released version, e.g. 1.2.0.
  * @param {string} dockerImage - Image of that version, e.g. ghcr.io/me/repo:1.2.0.
  * @returns {string} The new manifest content.
  */
 export function bumpManifest(text, version, dockerImage) {
+  const manifest = JSON.parse(text);
   const updates = { version, docker_image: dockerImage };
   // In formatted JSON the first indented line is the first top-level key: its
   // indentation tells top-level keys from nested ones (a sub-container of the
@@ -46,8 +64,26 @@ export function bumpManifest(text, version, dockerImage) {
     }
     result = result.replace(pattern, (_match, prefix) => prefix + JSON.stringify(value));
   }
-  // Those two values changed, and nothing else did.
-  assert.deepEqual(JSON.parse(result), { ...JSON.parse(text), ...updates });
+
+  // The integration's own image: the one the manifest pointed at, or the new
+  // one (the repository was renamed, or created from the template).
+  const ownImages = new Set([imageName(manifest.docker_image), imageName(dockerImage)]);
+  const followsRelease = (container) =>
+    typeof container?.docker_image === 'string' && ownImages.has(imageName(container.docker_image));
+  // Only the top-level and sub-container objects hold a `docker_image` key (the
+  // top-level one already points at the release: rewriting it is a no-op).
+  result = result.replace(/("docker_image":\s*)"([^"]*)"/g, (match, prefix, image) =>
+    ownImages.has(imageName(image)) ? prefix + JSON.stringify(dockerImage) : match,
+  );
+
+  // Those values changed, and nothing else did.
+  const expected = { ...manifest, ...updates };
+  if (Array.isArray(manifest.containers)) {
+    expected.containers = manifest.containers.map((container) =>
+      followsRelease(container) ? { ...container, docker_image: dockerImage } : container,
+    );
+  }
+  assert.deepEqual(JSON.parse(result), expected);
   return result;
 }
 

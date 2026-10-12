@@ -7,7 +7,8 @@
 #   1. computes the next semver from `package.json` (npm version rules);
 #   2. writes it into `package.json`, `package-lock.json` AND the manifest
 #      (`gladys-assistant-integration.json`: both `version` and the
-#      `docker_image` tag, so the indexer and the image stay in lockstep);
+#      `docker_image` tag, so the indexer and the image stay in lockstep —
+#      with the sub-containers that run that same image);
 #   3. moves the `## [Unreleased]` section of `CHANGELOG.md` under the version;
 #   4. commits the bump and pushes the `vX.Y.Z` tag;
 #   5. calls build.yml to publish the multi-arch image (`:X.Y.Z` + `:latest`);

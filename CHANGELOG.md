@@ -45,5 +45,7 @@ the notes of the version's GitHub Release.
 - The release commit no longer fails `npm run format:check`: the Release
   workflow updates the manifest `version` and `docker_image` in place instead
   of re-printing the whole file with `jq`.
+- The integration can write to `/data`: the image creates the directory owned
+  by the `node` user, a new Docker volume was owned by root.
 
 [Unreleased]: https://github.com/GladysAssistant/integration-template-js/commits/main

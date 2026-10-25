@@ -29,8 +29,11 @@ the notes of the version's GitHub Release.
 ### Changed
 
 - Node.js 22 or later is required (Node 20 is end-of-life).
-- Integration SDK 0.15.0. The tests now run against the fake Gladys of the
-  SDK, which refuses the payloads Gladys refuses.
+- Integration SDK 0.16.0. The tests now run against the fake Gladys of the
+  SDK, which refuses the payloads Gladys refuses. A device published with a
+  `poll_frequency` is now polled without `should_poll: true` on a recent
+  core (an explicit `should_poll: false` opts out); the template keeps the
+  field explicit for the older cores.
 - The refresh interval is one minute minimum, the fastest Gladys polls a
   device. The plug's power is only sent when it changes, and every 30
   minutes otherwise.

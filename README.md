@@ -80,7 +80,7 @@ logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
 separate so the parts you edit stay small.
 
 The plumbing you would otherwise copy into every integration comes straight
-from the SDK (v0.15.0+):
+from the SDK (v0.16.0+):
 
 - `logger` / `createLogger({ name })` — leveled console logger (`LOG_LEVEL`
   env var), with named/child loggers per module. Since SDK v0.4 the SDK also
@@ -110,18 +110,25 @@ from the SDK (v0.15.0+):
   smoke-sensor `contamination-state` / `muted` / `temporary-mute` features
   and the single-phase Linky `smaxn1` / `sinsts1` / `imax1` fields (SDK
   v0.14), then the thermostat `preset` feature — which temperature to aim
-  for, next to the `mode` that says what the machine does (SDK v0.15). A recent
-  category only renders on a Gladys that knows it, so keep the manifest
-  `gladys_version` range in sync with what you publish;
+  for, next to the `mode` that says what the machine does (SDK v0.15), then
+  the music player `title` / `artist` / `album` / `artwork` / `duration` /
+  `position` / `shuffle` / `repeat` / `mute` features behind the "now
+  playing" card, with `MUSIC_PLAYBACK_STATE` / `MUSIC_REPEAT_MODE` for their
+  values (SDK v0.16). A recent category only renders on a Gladys that knows
+  it, so keep the manifest `gladys_version` range in sync with what you
+  publish;
 - `gladys.externalIds(type, platformId)` — builds the unique, stable device
   and feature external ids;
-- `should_poll` + `DEVICE_POLL_FREQUENCIES` (SDK v0.15) — Gladys calls
-  `onPoll` only for a device published with `should_poll: true` and a
-  `poll_frequency` **in milliseconds** among `DEVICE_POLL_FREQUENCIES` (1 s
-  to 1 min); any other value makes Gladys refuse the whole discovery list
-  with a `400`. Both are read once, when the user creates the device, and a
-  minute is the slowest pace: the weather station and the plug declare
-  `EVERY_MINUTES`, and `createPoller` in
+- `poll_frequency` + `DEVICE_POLL_FREQUENCIES` (SDK v0.15) — Gladys calls
+  `onPoll` only for a device published with a `poll_frequency` **in
+  milliseconds** among `DEVICE_POLL_FREQUENCIES` (1 s to 1 min); any other
+  value makes Gladys refuse the whole discovery list with a `400`. Since SDK
+  v0.16 the core sets `should_poll: true` on such a device by itself and
+  only an explicit `should_poll: false` opts out (any other non-boolean is a
+  `400`); the template keeps `should_poll: true` explicit because the older
+  cores poll only with both fields. They are read once, when the user
+  creates the device, and a minute is the slowest pace: the weather station
+  and the plug declare `EVERY_MINUTES`, and `createPoller` in
   [`src/devices/index.js`](./src/devices/index.js) applies the slower
   refresh interval of the config by skipping the polls in between;
 - `gladys.publishChangedStates(states, { heartbeat })` (SDK v0.15) — the
@@ -229,7 +236,15 @@ fact), `"source": "houses"` selects (the user picks one of the Gladys houses,
 the handler receives its selector), forms on widget buttons (the values the
 user typed reach `onWidgetAction` as `values`, next to `settings`) and
 `parseMdnsTxt(txt)`, which turns the raw TXT entries of an `mdns` scan into
-an object. See the
+an object. SDK v0.16 adds music players (the `music` features of a speaker
+plus `onMusicBrowse` / `onMusicSearch` / `onMusicPlay` / `onMusicQueueGet` /
+`onMusicQueuePlay` / `onMusicGetArtwork` for its catalog and queue, and
+`publishNowPlaying` to redraw the "now playing" card in one call), AI
+providers (manifest `type: "ai"`: `onAiChat` answers one OpenAI-compatible
+chat completion with another, the agentic loop stays in the core) and
+text-to-speech providers (manifest `type: "tts"`: `onTtsSynthesize` resolves
+the clip as `audio/mpeg;base64,...`), all three played by the fake Gladys of
+the tests. See the
 [SDK README](https://github.com/GladysAssistant/integration-sdk-js) for the
 other patterns; this template stays focused on devices and the capabilities
 built on them.

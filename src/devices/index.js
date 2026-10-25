@@ -7,7 +7,7 @@
 //   - deviceExternalId(gladys)   : the device external_id (for dispatch)
 //   - buildDevice(gladys, config): the discovery payload sent to Gladys
 //   - onPoll(gladys, config)      (optional): periodic read, for a device
-//     published with `should_poll: true` (see createPoller below)
+//     published with a `poll_frequency` (see createPoller below)
 //   - onSetValue(gladys, {...})   (optional): run a user command
 //   - onGetImage(gladys, {...})   (optional): fresh camera capture, resolved
 //     as an `image/jpg;base64,...` string (cameras only)

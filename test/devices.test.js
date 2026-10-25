@@ -49,14 +49,24 @@ test('Gladys accepts the discovery payload', async () => {
 });
 
 test('Gladys polls exactly the devices that implement onPoll', () => {
+  // A device carrying a `poll_frequency` is polled: a recent core sets
+  // `should_poll: true` on it by itself, an older one needs it explicit, and
+  // an explicit `should_poll: false` is never polled on either.
   const frequencies = Object.values(DEVICE_POLL_FREQUENCIES);
   for (const bp of DEVICE_BLUEPRINTS) {
     const device = bp.buildDevice(gladys, config);
     if (typeof bp.onPoll === 'function') {
-      assert.equal(device.should_poll, true, `${bp.key}: without should_poll, never polled`);
       assert.ok(frequencies.includes(device.poll_frequency), `${bp.key}: invalid poll_frequency`);
+      assert.equal(
+        device.should_poll,
+        true,
+        `${bp.key}: the older cores poll only with should_poll`,
+      );
     } else {
-      assert.notEqual(device.should_poll, true, `${bp.key}: polled for nothing`);
+      assert.ok(
+        device.poll_frequency === undefined || device.should_poll === false,
+        `${bp.key}: polled for nothing`,
+      );
     }
   }
 });

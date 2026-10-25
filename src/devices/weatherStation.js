@@ -42,11 +42,14 @@ export const weatherStation = {
     return {
       name: 'Weather station (Open-Meteo demo)',
       external_id: ids.device,
-      // Gladys calls onPoll only with BOTH fields set. `poll_frequency` is in
-      // milliseconds and must be one of DEVICE_POLL_FREQUENCIES, or Gladys
-      // refuses the whole publication (400). It is read once, when the user
-      // creates the device: the user's own refresh interval is applied by the
-      // poll dispatcher instead (createPoller in ./index.js).
+      // Gladys calls onPoll for a device published with a `poll_frequency`:
+      // milliseconds, one of DEVICE_POLL_FREQUENCIES, or Gladys refuses the
+      // whole publication (400). A recent core sets `should_poll: true` on
+      // such a device by itself (only an explicit `false` opts out); it stays
+      // explicit here because the older cores poll only with both fields.
+      // The frequency is read once, when the user creates the device: the
+      // user's own refresh interval is applied by the poll dispatcher instead
+      // (createPoller in ./index.js).
       should_poll: true,
       poll_frequency: DEVICE_POLL_FREQUENCIES.EVERY_MINUTES,
       features: [

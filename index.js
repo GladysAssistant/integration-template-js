@@ -67,7 +67,7 @@ gladys.onGetImage(async (device) => {
 });
 
 // --- Polling: Gladys asks to refresh a device --------------------------------
-// Gladys polls the devices published with `should_poll: true` once a minute;
+// Gladys polls the devices published with a `poll_frequency` once a minute;
 // the poller reads them at the interval the user chose in the config.
 const pollDevice = createPoller();
 gladys.onPoll(async (device) => {

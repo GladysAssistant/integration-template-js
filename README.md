@@ -75,7 +75,12 @@ The wiring (connection, auth, reconnection, dispatch) is in
 ```
 
 To add a device type, create a new file in `src/devices/` following the same
-shape as the existing ones, then register it in `src/devices/index.js`. Business
+shape as the existing ones, then register it in `src/devices/index.js`. Every
+feature carries `name`, `min`, `max`, `read_only` and `has_feedback`, even where
+they mean nothing: Gladys stores them NOT NULL, and a missing one fails the
+creation of the device when the user clicks "Add" (HTTP 422
+`t_device_feature.min cannot be null`). `min`/`max` are `0`/`1` for a binary
+feature and `0`/`0` for a feature without a range (text, image…). Business
 logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
 separate so the parts you edit stay small.
 

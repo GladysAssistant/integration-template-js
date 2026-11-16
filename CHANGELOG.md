@@ -40,6 +40,11 @@ the notes of the version's GitHub Release.
 
 ### Fixed
 
+- The switch, the light, the plug, the motion sensor and the camera could not
+  be added from the Discovery tab: their on/off, motion and image features had
+  no `min`/`max`, which Gladys requires (HTTP 422 "t_device_feature.min cannot
+  be null"). A test now checks that every feature carries the columns Gladys
+  needs to create it.
 - Gladys refused the devices of the Discovery tab: the weather station and
   the plug declared their poll frequency in seconds instead of one of the
   values Gladys accepts, and were never polled. They now poll every minute,

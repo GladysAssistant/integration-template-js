@@ -56,6 +56,8 @@ export const motionSensor = {
           external_id: ids.feature(FEATURE.MOTION),
           category: DEVICE_FEATURE_CATEGORIES.MOTION_SENSOR,
           type: DEVICE_FEATURE_TYPES.SENSOR.BINARY,
+          min: 0,
+          max: 1,
           read_only: true,
           has_feedback: false,
           keep_history: true,

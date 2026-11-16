@@ -82,6 +82,10 @@ export const camera = {
           external_id: ids.feature(FEATURE.IMAGE),
           category: DEVICE_FEATURE_CATEGORIES.CAMERA,
           type: DEVICE_FEATURE_TYPES.CAMERA.IMAGE,
+          // No range for an image (nor for a text feature), but Gladys still
+          // requires min and max: 0/0.
+          min: 0,
+          max: 0,
           read_only: true,
           has_feedback: false,
           // Images never go through the states history.

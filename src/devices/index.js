@@ -5,7 +5,9 @@
 // exposes the same shape:
 //   - key                        : short identifier (used in logs)
 //   - deviceExternalId(gladys)   : the device external_id (for dispatch)
-//   - buildDevice(gladys, config): the discovery payload sent to Gladys
+//   - buildDevice(gladys, config): the discovery payload sent to Gladys. Every
+//     feature carries `name`, `min`, `max`, `read_only` and `has_feedback`,
+//     even a text or image one (min: 0, max: 0): see switchDevice.js
 //   - onPoll(gladys, config)      (optional): periodic read, for a device
 //     published with a `poll_frequency` (see createPoller below)
 //   - onSetValue(gladys, {...})   (optional): run a user command

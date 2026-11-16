@@ -52,6 +52,13 @@ test/                             node --test, against the SDK's fake Gladys (in
   devices, their history, scenes and dashboards on them: changing one creates a
   new device and orphans the old one. The same goes for every key users store:
   manifest `config_schema`, `actions`, widget and scene keys, feature keys.
+- **Every feature carries `name`, `min`, `max`, `read_only` and
+  `has_feedback`**, even where they mean nothing: Gladys stores them NOT NULL.
+  `min`/`max` are `0`/`1` for a binary feature, the real range for a numeric
+  one, `0`/`0` for a feature without a range (text, image...). A missing one
+  can pass the publication and the tests, then fail when the user clicks "Add"
+  (HTTP 422 `t_device_feature.min cannot be null`). `test/devices.test.js`
+  checks them.
 - **The container rootfs is read-only.** Write only under `/data`, the one
   writable volume. Never log tokens, passwords or API keys.
 - **Versions belong to the Release workflow** (Actions → Release). Never edit

@@ -80,12 +80,14 @@ feature carries `name`, `min`, `max`, `read_only` and `has_feedback`, even where
 they mean nothing: Gladys stores them NOT NULL, and a missing one fails the
 creation of the device when the user clicks "Add" (HTTP 422
 `t_device_feature.min cannot be null`). `min`/`max` are `0`/`1` for a binary
-feature and `0`/`0` for a feature without a range (text, image…). Business
-logic (the device modules) and utilities (`weather.js`, `config.js`) are kept
-separate so the parts you edit stay small.
+feature and `0`/`0` for a feature without a range (text, image…). Since SDK
+v0.16.1 the fake Gladys of the tests refuses such a feature on publication, so
+`npm test` catches it before a user does. Business logic (the device modules)
+and utilities (`weather.js`, `config.js`) are kept separate so the parts you
+edit stay small.
 
 The plumbing you would otherwise copy into every integration comes straight
-from the SDK (v0.16.0+):
+from the SDK (v0.16.1+):
 
 - `logger` / `createLogger({ name })` — leveled console logger (`LOG_LEVEL`
   env var), with named/child loggers per module. Since SDK v0.4 the SDK also

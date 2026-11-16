@@ -43,7 +43,8 @@ test('Gladys accepts the discovery payload', async () => {
   // The SDK fake checks the payload like the host API does: external_id
   // prefix, known category/type/unit, poll_frequency... A refusal is a 400
   // for the WHOLE list, so no device would show up in the Discovery tab.
-  // Passing it does not prove the user can ADD the devices: see the next test.
+  // Since SDK 0.16.1 it also refuses a feature missing a column Gladys needs
+  // to create it (see the next test).
   const fresh = createFakeGladys();
   await fresh.publishDiscoveredDevices(buildDiscoveredDevices(fresh, config));
   assert.equal(fresh.fake.discoveredDevices.length, DEVICE_BLUEPRINTS.length);
@@ -51,9 +52,11 @@ test('Gladys accepts the discovery payload', async () => {
 
 test('every feature carries the columns Gladys needs to create it', () => {
   // Gladys stores these columns NOT NULL, without a default. The discovery
-  // publication does not check them on every core, nor does every fake: a
-  // missing one then fails only when the user clicks "Add", with an HTTP 422
-  // such as "t_device_feature.min cannot be null".
+  // publication does not check them on every core: a missing one then fails
+  // only when the user clicks "Add", with an HTTP 422 such as
+  // "t_device_feature.min cannot be null". The SDK fake refuses it on
+  // publication (previous test); this one names the faulty feature, and also
+  // checks that min does not exceed max, which the fake leaves alone.
   for (const device of buildDiscoveredDevices(gladys, config)) {
     for (const feature of device.features) {
       const where = `${device.name} / ${feature.name ?? feature.external_id}`;

@@ -43,9 +43,28 @@ test('Gladys accepts the discovery payload', async () => {
   // The SDK fake checks the payload like the host API does: external_id
   // prefix, known category/type/unit, poll_frequency... A refusal is a 400
   // for the WHOLE list, so no device would show up in the Discovery tab.
+  // Passing it does not prove the user can ADD the devices: see the next test.
   const fresh = createFakeGladys();
   await fresh.publishDiscoveredDevices(buildDiscoveredDevices(fresh, config));
   assert.equal(fresh.fake.discoveredDevices.length, DEVICE_BLUEPRINTS.length);
+});
+
+test('every feature carries the columns Gladys needs to create it', () => {
+  // Gladys stores these columns NOT NULL, without a default. The discovery
+  // publication does not check them on every core, nor does every fake: a
+  // missing one then fails only when the user clicks "Add", with an HTTP 422
+  // such as "t_device_feature.min cannot be null".
+  for (const device of buildDiscoveredDevices(gladys, config)) {
+    for (const feature of device.features) {
+      const where = `${device.name} / ${feature.name ?? feature.external_id}`;
+      assert.ok(typeof feature.name === 'string' && feature.name.length > 0, `${where}: name`);
+      assert.ok(Number.isFinite(feature.min), `${where}: min must be a finite number`);
+      assert.ok(Number.isFinite(feature.max), `${where}: max must be a finite number`);
+      assert.ok(feature.min <= feature.max, `${where}: min must not exceed max`);
+      assert.equal(typeof feature.read_only, 'boolean', `${where}: read_only`);
+      assert.equal(typeof feature.has_feedback, 'boolean', `${where}: has_feedback`);
+    }
+  }
 });
 
 test('Gladys polls exactly the devices that implement onPoll', () => {

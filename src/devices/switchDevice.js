@@ -42,6 +42,14 @@ export const switchDevice = {
           external_id: ids.feature(FEATURE.ON_OFF),
           category: DEVICE_FEATURE_CATEGORIES.SWITCH,
           type: DEVICE_FEATURE_TYPES.SWITCH.BINARY,
+          // `name`, `min`, `max`, `read_only` and `has_feedback` are
+          // mandatory on EVERY feature, even where they mean nothing: Gladys
+          // stores them NOT NULL, and a missing one fails the creation of the
+          // device when the user clicks "Add" (HTTP 422 "t_device_feature.min
+          // cannot be null"). A binary feature is 0..1; a feature without a
+          // range (text, image...) declares min: 0, max: 0.
+          min: 0,
+          max: 1,
           read_only: false, // actuator: the user can control it
           has_feedback: true, // the device confirms its new state
           keep_history: true,
